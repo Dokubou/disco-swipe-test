@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- iPhone(Safari)のピンチ/ダブルタップズーム抑止 + ノッチ対応(viewport-fit=cover) -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Disco Swipe">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0b10">
+<title>Disco Swipe — 音楽ディスカバリー</title>
+<!-- ホーム画面に追加(スマホでアプリのように使う)用 -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="style.css?v=11">
+</head>
+<body>
+
+  <!-- 現在の曲のジャケットをぼかした背景レイヤー -->
+  <div id="bg" class="bg"></div>
+  <div class="bg-shade"></div>
+
+  <main id="app" class="app" aria-hidden="false">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">DISCO<span class="brand-thin">SWIPE</span></span>
+      </div>
+      <div class="topbar-actions">
+        <button id="autoSkipBtn" class="skip-toggle" type="button" aria-pressed="false" aria-label="自動スキップ">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg>
+          <span>自動スキップ</span>
+        </button>
+        <button id="libraryBtn" class="lib-btn" type="button" aria-label="ライブラリを開く">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <span id="libCount" class="lib-count">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ジャンル絞り込みチップ(横スクロール) -->
+    <nav id="genreBar" class="genres" aria-label="ジャンルを選ぶ">
+      <button class="chip is-active" data-bucket="osusume" type="button">★ おすすめ</button>
+      <button class="chip" data-bucket="all" type="button">すべて</button>
+      <button class="chip" data-bucket="jpop" type="button">J-POP</button>
+      <button class="chip" data-bucket="anime" type="button">アニソン</button>
+      <button class="chip" data-bucket="vocaloid" type="button">ボカロ</button>
+      <button class="chip" data-bucket="kpop" type="button">K-POP</button>
+      <button class="chip" data-bucket="yougaku" type="button">洋楽</button>
+      <button class="chip" data-bucket="hiphop_jp" type="button">HIPHOP JP</button>
+      <button class="chip" data-bucket="hiphop_us" type="button">HIPHOP US</button>
+      <button class="chip" data-bucket="bgm" type="button">BGM</button>
+    </nav>
+
+    <!-- スワイプ操作のメインステージ -->
+    <section id="stage" class="stage" aria-label="楽曲スワイプエリア">
+
+      <!-- トーンアーム(再生中はレコードに乗る) -->
+      <div id="tonearm" class="tonearm" aria-hidden="true">
+        <span class="tonearm-base"></span>
+        <span class="tonearm-rod"></span>
+        <span class="tonearm-head"></span>
+      </div>
+
+      <!-- スワイプ対象のレコードカード(translate/rotateはJSが付与) -->
+      <div id="card" class="record-card">
+        <!-- 回転するレコード本体(spinはこの要素だけに掛けてドラッグ変形と干渉させない) -->
+        <div id="disc" class="disc">
+          <div class="disc-sheen"></div>
+          <div class="label">
+            <img id="artwork" class="label-img" alt="" draggable="false">
+          </div>
+          <div class="hole"></div>
+        </div>
+
+        <!-- 30秒試聴のプログレスリング -->
+        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="ring-bg" cx="50" cy="50" r="48"></circle>
+          <circle id="ringProgress" class="ring-fg" cx="50" cy="50" r="48"></circle>
+        </svg>
+
+        <!-- スワイプ方向インジケータ (左右=いいね / 上=次の曲 / 下=前の曲) -->
+        <div class="badge badge-like">いいね ♥</div>
+        <div class="badge badge-nope">いいね ♥</div>
+        <div class="badge badge-up">次の曲 ↑</div>
+        <div class="badge badge-down">前の曲 ↓</div>
+        <!-- 長押しして下げると2倍速 -->
+        <div id="speedTag" class="speed-tag">2× ⏩</div>
+      </div>
+    </section>
+
+    <!-- 曲情報 -->
+    <section class="track-info">
+      <h1 id="trackName" class="track-name">読み込み中…</h1>
+      <p id="artistName" class="track-artist"></p>
+      <div class="track-actions">
+        <span id="genreTag" class="track-genre"></span>
+        <a id="openApple" class="apple-open" target="_blank" rel="noopener noreferrer">Apple Musicで開く ↗</a>
+      </div>
+    </section>
+
+    <!-- 下部コントロール -->
+    <nav class="controls" aria-label="再生コントロール">
+      <button id="prevBtn" class="ctrl ctrl-side" type="button" aria-label="一個前に戻る">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+
+      <button id="playBtn" class="ctrl ctrl-play" type="button" aria-label="再生 / 停止">
+        <svg class="icon-play" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+
+      <button id="nextBtn" class="ctrl ctrl-side" type="button" aria-label="次の曲へ">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+    </nav>
+
+    <p class="hint">↑↓ 曲を切り替え&nbsp;&nbsp;/&nbsp;&nbsp;←→・ダブルタップ＝いいね ♥</p>
+    <p class="hint hint-sub">タップ＝再生/停止&nbsp;・&nbsp;レコードを長押しして回す＝早送り/巻き戻し&nbsp;・&nbsp;レコード外を長押し＝2倍速</p>
+  </main>
+
+  <!-- 通知トースト -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- iOSは音声再生にユーザー操作が必須なので、最初にタップさせる -->
+  <div id="startOverlay" class="start-overlay">
+    <div class="start-inner">
+      <div class="start-disc"></div>
+      <h2 class="start-title">DISCO SWIPE</h2>
+      <p class="start-sub">ジャンルを越えて、まだ知らない曲へ。<br>30秒ずつ、直感でスワイプ。</p>
+      <button id="startBtn" class="start-btn" type="button">タップして再生 ▶</button>
+      <p id="startStatus" class="start-status">楽曲を準備中…</p>
+    </div>
+  </div>
+
+  <!-- ライブラリ(お気に入り / Apple Music追加リスト) -->
+  <div id="libraryPanel" class="library hidden" aria-hidden="true">
+    <div class="library-sheet">
+      <div class="library-head">
+        <h2>ライブラリ</h2>
+        <button id="libraryClose" class="library-close" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="library-tabs">
+        <button class="lib-tab is-active" data-tab="fav" type="button">お気に入り <span id="favCount">0</span></button>
+        <button class="lib-tab" data-tab="apple" type="button">Apple Music追加 <span id="appleCount">0</span></button>
+      </div>
+      <ul id="favList" class="lib-list"></ul>
+      <div id="appleSection" class="hidden">
+        <div class="apple-connect">
+          <button id="appleConnectBtn" class="apple-connect-btn" type="button">Apple Musicと連携</button>
+          <p id="appleConnectNote" class="apple-connect-note">連携すると、上スワイプした曲が自動で Apple Music のプレイリストに追加されます。（要 Apple Music サブスク）</p>
+        </div>
+        <ul id="appleList" class="lib-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 歌詞 -->
+  <div id="lyricsPanel" class="library hidden" aria-hidden="true">
+    <div class="library-sheet">
+      <div class="library-head">
+        <div class="lyrics-heads">
+          <h2 id="lyricsTitle">歌詞</h2>
+          <p id="lyricsArtist" class="lyrics-artist"></p>
+        </div>
+        <button id="lyricsClose" class="library-close" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div id="lyricsBody" class="lyrics-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js?v=40"></script>
+</body>
+</html>

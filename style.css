@@ -1,0 +1,632 @@
+/* ============================================================
+   Disco Swipe — 縦スワイプ式 音楽ディスカバリー
+   素のCSS / Mobile-first / iOS Safari 対策込み
+   ============================================================ */
+
+:root{
+  --bg:#0b0b10;
+  --fg:#f3f3f7;
+  --muted:#a9a9b8;
+  --like:#21d07a;     /* 右スワイプ:キープ */
+  --nope:#ff476f;     /* 左スワイプ:スキップ */
+  --up:#ff9d2e;       /* 上スワイプ:プレイリスト */
+  --accent:#b06bff;
+  --accent2:#ff5fa2;
+  --disc-size: min(76vw, 360px);
+  --ease: cubic-bezier(.22,.61,.36,1);
+  /* iOSのセーフエリア */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  /* iOSのタップ時ハイライト/長押しメニュー/選択を抑止(連打時の残像・誤作動防止) */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+html,body{
+  height:100%;
+  width:100%;
+  overflow:hidden;                 /* 全画面没入。ページスクロール禁止 */
+  overscroll-behavior:none;        /* 引っ張り更新/バウンス抑止 */
+  background:var(--bg);
+  color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  /* ダブルタップズーム・300ms遅延の抑止 */
+  touch-action:manipulation;
+}
+
+body{
+  position:fixed;                  /* iOSのアドレスバー伸縮によるガタつき防止 */
+  inset:0;
+  -webkit-font-smoothing:antialiased;
+}
+
+img{ -webkit-user-drag:none; user-select:none; }
+button{ font-family:inherit; color:inherit; cursor:pointer; border:none; background:none; }
+
+/* ---------- 背景(現在のジャケットをぼかして敷く) ---------- */
+.bg{
+  position:fixed; inset:-12%;
+  background-size:cover; background-position:center;
+  filter:blur(42px) saturate(1.4) brightness(.55);
+  transform:scale(1.15) translateZ(0);
+  transition:background-image .5s ease, opacity .6s ease;
+  opacity:.9;
+  z-index:0;
+}
+.bg-shade{
+  position:fixed; inset:0;
+  background:
+    radial-gradient(120% 80% at 50% 18%, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 70%, rgba(0,0,0,.85) 100%),
+    linear-gradient(180deg, rgba(11,11,16,.25) 0%, rgba(11,11,16,.65) 60%, rgba(11,11,16,.92) 100%);
+  z-index:0;
+}
+
+/* ---------- アプリ本体レイアウト ---------- */
+.app{
+  position:relative;
+  z-index:1;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:
+    calc(var(--safe-top) + 8px)
+    16px
+    calc(var(--safe-bottom) + 14px);
+}
+
+/* ---------- トップバー ---------- */
+.topbar{
+  width:100%;
+  max-width:520px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex:0 0 auto;
+}
+.brand{ display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.14em; font-size:15px; }
+.brand-dot{
+  width:11px; height:11px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #fff 0 12%, var(--accent2) 13%, var(--accent) 80%);
+  box-shadow:0 0 14px var(--accent);
+}
+.brand-thin{ font-weight:400; opacity:.7; margin-left:2px; }
+
+.topbar-actions{ display:flex; align-items:center; gap:8px; }
+.skip-toggle{
+  display:flex; align-items:center; gap:5px;
+  font-size:12px; font-weight:700; color:var(--muted);
+  padding:7px 11px; border-radius:999px;
+  background:rgba(255,255,255,.08);
+  white-space:nowrap;
+  transition:transform .12s ease, background .2s ease, color .2s ease;
+}
+.skip-toggle svg{ width:15px; height:15px; }
+.skip-toggle:active{ transform:scale(.94); }
+.skip-toggle.on{
+  color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 4px 12px rgba(176,107,255,.4);
+}
+
+.lib-btn{
+  position:relative;
+  width:42px; height:42px; border-radius:50%;
+  display:grid; place-items:center;
+  color:var(--fg);
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.lib-btn:active{ transform:scale(.92); }
+.lib-count{
+  position:absolute; top:-4px; right:-4px;
+  min-width:18px; height:18px; padding:0 4px;
+  font-size:11px; font-weight:700; line-height:18px; text-align:center;
+  border-radius:9px; background:var(--like); color:#06281a;
+}
+
+/* ---------- ジャンル絞り込みチップ ---------- */
+.genres{
+  flex:0 0 auto;
+  width:100%;
+  max-width:520px;
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+  padding:2px 2px 4px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x;                 /* 横スクロールのみ許可(縦スワイプと干渉させない) */
+  scrollbar-width:none;
+}
+.genres::-webkit-scrollbar{ display:none; }
+.chip{
+  flex:0 0 auto;
+  font-size:13px; font-weight:700; letter-spacing:.02em;
+  color:var(--muted);
+  padding:8px 15px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  white-space:nowrap;
+  transition:transform .12s ease, background .2s ease, color .2s ease;
+}
+.chip:active{ transform:scale(.94); }
+.chip.is-active{
+  color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 6px 16px rgba(176,107,255,.4);
+}
+
+/* ---------- ステージ ---------- */
+.stage{
+  position:relative;
+  flex:1 1 auto;
+  width:100%;
+  max-width:520px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  /* スワイプ中にブラウザのスクロール/ズームを奪われないようにする(超重要) */
+  touch-action:none;
+}
+
+/* スワイプで動く外側カード(translate/rotate はJSが付与) */
+.record-card{
+  position:relative;
+  width:var(--disc-size);
+  height:var(--disc-size);
+  display:grid;
+  place-items:center;
+  /* GPU合成レイヤに乗せ、DOM更新時の描画残像(ゴースト)を防ぐ */
+  will-change:transform, opacity;
+  transform:translate3d(0,0,0);
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  touch-action:none;
+}
+/* ドラッグ追従中はトランジション無効(指にピッタリ付かせる) */
+.record-card.dragging{ transition:none; }
+/* フリング/スナップ復帰時だけトランジションを効かせる */
+.record-card.animating{
+  transition:transform .26s var(--ease), opacity .26s var(--ease);
+}
+
+/* ---------- レコード本体(回転する) ---------- */
+.disc{
+  position:absolute; inset:0;
+  border-radius:50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%,
+      #0a0a0a 0 1px, #161616 1px 2.4px, #0d0d0d 2.4px 3.6px),
+    radial-gradient(circle at 50% 50%, #1c1c1c 0 30%, #000 78%, #050505 100%);
+  box-shadow:
+    0 26px 60px rgba(0,0,0,.6),
+    0 4px 14px rgba(0,0,0,.5),
+    inset 0 0 50px rgba(0,0,0,.85),
+    inset 0 0 0 2px rgba(255,255,255,.04);
+  /* 回転は JS(requestAnimationFrame)で transform:rotate を更新。
+     こうすることで自動回転と「手回しスクラッチ」が同じ角度(discAngle)を共有でき、
+     手回し→再生復帰でも回転位置が飛ばない。 */
+  will-change:transform;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+
+/* レコードの光沢が回るスイープ */
+.disc-sheen{
+  position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg,
+    rgba(255,255,255,0) 0deg,
+    rgba(255,255,255,.10) 40deg,
+    rgba(255,255,255,0) 90deg,
+    rgba(255,255,255,0) 200deg,
+    rgba(255,255,255,.06) 250deg,
+    rgba(255,255,255,0) 300deg);
+  mix-blend-mode:screen;
+  pointer-events:none;
+}
+
+/* 中央のジャケット(紙ラベル) */
+.label{
+  position:absolute; inset:31%;
+  border-radius:50%;
+  overflow:hidden;
+  box-shadow:
+    0 0 0 3px rgba(0,0,0,.55),
+    inset 0 0 16px rgba(0,0,0,.5);
+  background:#222;
+}
+.label-img{
+  width:100%; height:100%;
+  object-fit:cover;
+  display:block;
+  pointer-events:none;
+}
+/* 中心の穴 */
+.hole{
+  position:absolute; inset:48.3%;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 40%, #2a2a2a, #050505 70%);
+  box-shadow:inset 0 0 4px #000, 0 0 0 2px rgba(255,255,255,.05);
+}
+
+/* ---------- プログレスリング(30秒) ---------- */
+.ring{
+  position:absolute;
+  left:50%; top:50%;
+  width:calc(var(--disc-size) + 14px);
+  height:calc(var(--disc-size) + 14px);
+  transform:translate(-50%,-50%) rotate(-90deg);
+  pointer-events:none;
+  overflow:visible;
+}
+.ring-bg{ fill:none; stroke:rgba(255,255,255,.12); stroke-width:1.4; }
+.ring-fg{
+  fill:none;
+  stroke:url(#ringGrad);
+  stroke:var(--accent2);
+  stroke-width:1.8;
+  stroke-linecap:round;
+  /* 2πr (r=48) ≒ 301.59 */
+  stroke-dasharray:301.59;
+  stroke-dashoffset:301.59;
+  filter:drop-shadow(0 0 4px rgba(255,95,162,.7));
+  /* 進捗は rAF で毎フレーム更新するので transition は付けない(カクつき防止) */
+}
+
+/* ---------- スワイプ方向バッジ ---------- */
+.badge{
+  position:absolute; top:20px;
+  padding:7px 14px;
+  font-weight:800; font-size:16px; letter-spacing:.06em;
+  border-radius:12px;
+  border:2.5px solid currentColor;
+  opacity:0;
+  pointer-events:none;
+  text-transform:uppercase;
+  backdrop-filter:blur(2px);
+}
+.badge-like{ right:14px; color:var(--like); transform:rotate(14deg); }
+.badge-nope{ left:14px;  color:var(--like); transform:rotate(-14deg); }
+.badge-up{
+  left:50%; top:auto; bottom:14px;
+  transform:translateX(-50%);
+  color:var(--up);
+}
+.badge-down{
+  left:50%; top:20px;
+  transform:translateX(-50%);
+  color:var(--up);
+}
+
+/* ---------- いいね時のハート演出（曲は進めず中央にポンと出す） ---------- */
+.heart-burst{
+  position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%) scale(.3);
+  font-size:96px; line-height:1;
+  color:var(--like);
+  text-shadow:0 6px 22px rgba(33,208,122,.6);
+  pointer-events:none; z-index:6;
+  animation:heartPop .65s var(--ease) forwards;
+}
+@keyframes heartPop{
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(.3); }
+  30%  { opacity:1; transform:translate(-50%,-50%) scale(1.15); }
+  60%  { opacity:1; transform:translate(-50%,-60%) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-95%) scale(.9); }
+}
+
+/* ---------- トーンアーム ---------- */
+.tonearm{
+  position:absolute;
+  top:calc(50% - var(--disc-size)/2 - 6px);
+  right:calc(50% - var(--disc-size)/2 - 22px);
+  width:120px; height:120px;
+  transform-origin:18px 18px;
+  transform:rotate(-32deg);
+  transition:transform .5s var(--ease);
+  z-index:3;
+  pointer-events:none;
+  filter:drop-shadow(0 6px 8px rgba(0,0,0,.5));
+}
+.tonearm.on{ transform:rotate(6deg); }
+.tonearm-base{
+  position:absolute; top:6px; left:6px;
+  width:26px; height:26px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #e9e9ef, #9a9aa6 60%, #5a5a64);
+  box-shadow:0 2px 4px rgba(0,0,0,.5);
+}
+.tonearm-rod{
+  position:absolute; top:17px; left:17px;
+  width:96px; height:6px; border-radius:4px;
+  transform-origin:left center;
+  transform:rotate(34deg);
+  background:linear-gradient(90deg,#d8d8df,#9b9ba6);
+  box-shadow:0 1px 2px rgba(0,0,0,.4);
+}
+.tonearm-head{
+  position:absolute; top:74px; left:78px;
+  width:16px; height:24px; border-radius:3px;
+  transform:rotate(34deg);
+  background:linear-gradient(180deg,#3a3a44,#15151b);
+}
+
+/* ---------- 曲情報 ---------- */
+.track-info{
+  flex:0 0 auto;
+  width:100%; max-width:520px;
+  text-align:center;
+  padding:6px 8px 2px;
+  min-height:74px;
+}
+.track-name{
+  font-size:20px; font-weight:800; line-height:1.25;
+  margin-bottom:4px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  text-shadow:0 2px 10px rgba(0,0,0,.6);
+}
+.track-artist{ font-size:15px; color:#dcdce6; }
+.track-actions{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-top:8px;
+}
+.track-genre{
+  display:inline-block;
+  font-size:11px; font-weight:700; letter-spacing:.08em;
+  color:#fff;
+  padding:4px 10px; border-radius:999px;
+  background:rgba(255,255,255,.12);
+}
+/* Apple Musicで開く（誘導導線） */
+.apple-open{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:700; letter-spacing:.04em;
+  color:#fff; text-decoration:none; white-space:nowrap;
+  padding:4px 12px; border-radius:999px;
+  background:linear-gradient(135deg,#fa2d48,#fb5c74);
+  box-shadow:0 2px 8px rgba(250,45,72,.35);
+}
+.apple-open:active{ filter:brightness(.92); }
+.apple-open.hidden{ display:none; }
+.lyrics-btn{
+  font-size:11px; font-weight:700; letter-spacing:.06em;
+  color:#fff;
+  padding:4px 12px; border-radius:999px;
+  background:rgba(255,255,255,.12);
+  transition:transform .12s ease, background .2s ease;
+}
+.lyrics-btn:active{ transform:scale(.94); background:rgba(255,255,255,.22); }
+
+/* 歌詞シート */
+.lyrics-heads h2{ font-size:17px; font-weight:800; line-height:1.2; max-width:74vw;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lyrics-artist{ font-size:12px; color:var(--muted); margin-top:2px; }
+.lyrics-body{
+  white-space:pre-wrap;
+  line-height:1.85; font-size:15px; color:#eaeaf2;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:4px 2px 8px;
+}
+.lyrics-body.loading{ color:var(--muted); }
+.lyrics-empty{ color:var(--muted); margin-bottom:16px; }
+.lyrics-search{
+  display:inline-block; font-size:14px; font-weight:700; color:#fff;
+  padding:10px 18px; border-radius:999px;
+  background:linear-gradient(145deg,var(--accent),var(--accent2));
+}
+
+/* ---------- 下部コントロール ---------- */
+.controls{
+  flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  gap:26px;
+  margin-top:8px;
+}
+.ctrl{
+  display:grid; place-items:center;
+  border-radius:50%;
+  color:var(--fg);
+  background:rgba(255,255,255,.10);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  transition:transform .12s ease, background .2s ease;
+}
+.ctrl:active{ transform:scale(.9); background:rgba(255,255,255,.18); }
+.ctrl-side{ width:54px; height:54px; }
+.ctrl-play{
+  width:74px; height:74px;
+  background:linear-gradient(145deg,var(--accent),var(--accent2));
+  box-shadow:0 10px 26px rgba(176,107,255,.45);
+}
+.ctrl-play:active{ background:linear-gradient(145deg,var(--accent),var(--accent2)); }
+/* 再生状態に応じて再生/一時停止アイコンを切替 */
+.icon-pause{ display:none; }
+.ctrl-play.playing .icon-play{ display:none; }
+.ctrl-play.playing .icon-pause{ display:block; }
+
+.hint{
+  flex:0 0 auto;
+  margin-top:10px;
+  font-size:12px; color:var(--muted); letter-spacing:.02em; text-align:center;
+}
+.hint-sub{ margin-top:3px; font-size:11px; opacity:.8; }
+
+/* ---------- トースト ---------- */
+.toast{
+  position:fixed; left:50%; bottom:calc(var(--safe-bottom) + 120px);
+  transform:translate(-50%,16px);
+  background:rgba(20,20,28,.92);
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff; font-size:14px; font-weight:600;
+  padding:11px 18px; border-radius:999px;
+  opacity:0; pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease;
+  z-index:40;
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  white-space:nowrap;
+}
+.toast.show{ opacity:1; transform:translate(-50%,0); }
+
+/* ---------- スタートオーバーレイ ---------- */
+.start-overlay{
+  position:fixed; inset:0; z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(120% 100% at 50% 0%, #1a1426 0%, #0b0b10 60%);
+  text-align:center;
+  transition:opacity .45s ease, visibility .45s ease;
+}
+.start-overlay.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+.start-inner{ padding:30px; max-width:340px; }
+.start-disc{
+  width:120px; height:120px; margin:0 auto 24px;
+  border-radius:50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, #0a0a0a 0 1px, #1a1a1a 1px 3px),
+    radial-gradient(circle, #2a2a2a 0 26%, #000 70%);
+  box-shadow:0 14px 40px rgba(0,0,0,.6), inset 0 0 30px rgba(0,0,0,.8);
+  position:relative;
+  animation:spin 4.5s linear infinite;
+}
+.start-disc::after{
+  content:""; position:absolute; inset:42%;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--accent2), var(--accent) 70%);
+}
+.start-title{ font-size:30px; font-weight:900; letter-spacing:.16em; margin-bottom:12px; }
+.start-sub{ color:var(--muted); font-size:14px; line-height:1.7; margin-bottom:28px; }
+.start-btn{
+  width:100%;
+  font-size:17px; font-weight:800; letter-spacing:.04em;
+  padding:16px; border-radius:16px;
+  color:#fff;
+  background:linear-gradient(145deg,var(--accent),var(--accent2));
+  box-shadow:0 12px 30px rgba(176,107,255,.45);
+  transition:transform .12s ease;
+}
+.start-btn:active{ transform:scale(.97); }
+.start-btn:disabled{ opacity:.5; box-shadow:none; }
+.start-status{ margin-top:16px; font-size:12px; color:var(--muted); min-height:16px; }
+
+/* ---------- ライブラリパネル ---------- */
+.library{
+  position:fixed; inset:0; z-index:50;
+  display:flex; align-items:flex-end;
+  background:rgba(0,0,0,.55);
+  transition:opacity .3s ease;
+}
+.library.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+.library-sheet{
+  width:100%; max-height:78vh;
+  background:#16161e;
+  border-radius:22px 22px 0 0;
+  padding:18px 18px calc(var(--safe-bottom) + 20px);
+  display:flex; flex-direction:column;
+  transform:translateY(0);
+  transition:transform .3s var(--ease);
+  box-shadow:0 -10px 40px rgba(0,0,0,.5);
+}
+.library.hidden .library-sheet{ transform:translateY(100%); }
+.library-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.library-head h2{ font-size:18px; font-weight:800; }
+.library-close{ font-size:26px; line-height:1; width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.08); }
+.library-tabs{ display:flex; gap:8px; margin-bottom:12px; }
+.lib-tab{
+  flex:1; padding:10px; border-radius:12px; font-size:13px; font-weight:700;
+  color:var(--muted); background:rgba(255,255,255,.06);
+}
+.lib-tab.is-active{ color:#fff; background:rgba(176,107,255,.25); }
+.lib-tab span{ opacity:.8; }
+.lib-list{ list-style:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.lib-list li{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 4px; border-bottom:1px solid rgba(255,255,255,.06);
+}
+.lib-list img{ width:46px; height:46px; border-radius:8px; object-fit:cover; flex:0 0 auto; background:#222; }
+.lib-meta{ flex:1; min-width:0; }
+.lib-meta b{ display:block; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lib-meta span{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.lib-open{
+  flex:0 0 auto; font-size:12px; font-weight:700;
+  color:#fff; padding:7px 12px; border-radius:999px;
+  background:linear-gradient(145deg,#fb5c74,#fa233b); /* Apple Music風 */
+}
+.lib-empty{ text-align:center; color:var(--muted); padding:40px 10px; font-size:14px; }
+/* いいね/追加リストの削除(×)ボタン — 間違えていいねした曲を取り消す */
+.lib-del{
+  flex:0 0 auto; width:32px; height:32px; border-radius:50%;
+  font-size:18px; line-height:1; color:var(--muted);
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center;
+}
+.lib-del:active{ background:var(--nope); color:#fff; }
+
+/* 2倍速インジケータ — 長押しして下げると表示 */
+.speed-tag{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.7);
+  z-index:6; pointer-events:none; opacity:0; transition:opacity .12s ease, transform .12s ease;
+  padding:10px 18px; border-radius:999px; font-size:22px; font-weight:800; letter-spacing:.5px;
+  color:#fff; background:rgba(10,10,16,.82); border:2px solid var(--accent);
+  box-shadow:0 8px 30px rgba(176,107,255,.5);
+}
+.speed-tag.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+/* Apple Music 連携 */
+.apple-connect{
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px; padding:14px; margin-bottom:12px; text-align:center;
+}
+.apple-connect-btn{
+  width:100%; font-size:14px; font-weight:800; color:#fff;
+  padding:12px; border-radius:12px;
+  background:linear-gradient(145deg,#fb5c74,#fa233b);   /* Apple Music風 */
+  box-shadow:0 8px 20px rgba(250,35,59,.35);
+  transition:transform .12s ease;
+}
+.apple-connect-btn:active{ transform:scale(.97); }
+.apple-connect-btn.connected{
+  background:linear-gradient(145deg,#21d07a,#10a35f);
+  box-shadow:0 8px 20px rgba(16,163,95,.35);
+}
+.apple-connect-note{ margin-top:10px; font-size:12px; line-height:1.6; color:var(--muted); }
+
+.hidden{ display:none !important; }
+
+/* ---------- アニメーション ---------- */
+@keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
+/* 動きを減らす設定の人向け */
+@media (prefers-reduced-motion: reduce){
+  .disc, .start-disc{ animation:none !important; }
+  .record-card.animating{ transition-duration:.12s; }
+}
+
+/* 横長(タブレット/PC)では中央に程よいサイズで収める */
+@media (min-aspect-ratio: 1/1){
+  :root{ --disc-size:min(46vh, 360px); }
+}
+
+/* ===== 縦向き維持: スマホを横にしても画面を回転させず“縦のまま”使う =====
+   端末が横向きのとき body を90°回転して縦画面を再現する。回転方向は端末の
+   向き(左回し/右回し)に合わせて JS(app.js の keepPortrait)が body に付与する
+   .lock-cw / .lock-ccw で決める。メッセージ等は一切出さない。 */
+body.lock-cw, body.lock-ccw{
+  inset:auto; top:0; left:0;
+  width:100vh;                   /* 回転後の“縦の幅”= 端末の高さ */
+  height:100vw;                  /* 回転後の“縦の高さ”= 端末の幅 */
+  transform-origin:top left;
+  overflow:hidden;
+}
+body.lock-cw{  transform:translateX(100vw) rotate(90deg);  }   /* 端末を反時計回りに倒した時 */
+body.lock-ccw{ transform:translateY(100vh) rotate(-90deg); }   /* 端末を時計回りに倒した時 */
+/* 回転中はレコード等の vw 基準を vh 基準に読み替える */
+body.lock-cw,  body.lock-ccw{ --disc-size:min(76vh, 360px); }
