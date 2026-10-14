@@ -36,10 +36,13 @@
     order: [],      // シャッフル済みの再生列(履歴も兼ねる)
     pos: 0,         // order内の現在位置
     bucket: "osusume", // 選択中のジャンル(osusume=おすすめ / all=全ジャンル均等ランダム)
+    favoriteQueue: false,
+    discovery: null,
     started: false, // ユーザー操作でオーディオ解放済みか
     playing: false,
     autoSkip: localStorage.getItem("discoSwipe.autoSkip") === "1", // 曲が終わると自動で次へ
     scrubbing: false, // レコード手回し(スクラッチ)中か
+    seeking: false,   // シークバーを掴んで再生位置を移動中か
     locked: false,  // 遷移アニメ中のロック(連打の整合性確保)
     fav: loadLS(LS_FAV),
     apple: loadLS(LS_APPLE),
@@ -108,6 +111,8 @@
     updateCounts();
     updateAppleConnectUI();
     applyAutoSkip();
+    initBannerAd();
+    initTheme();                         // 保存されたテーマ(なければ端末設定)を適用
     els.startBtn.disabled = true;
     requestAnimationFrame(animLoop);     // プログレスリングを滑らかに更新するループを開始
 
@@ -121,20 +126,24 @@
       state.tracks = pool;
       buildOrder();
       loadCurrent(false);                 // 1曲目をUIに用意(音はまだ:iOSは要ユーザー操作)
-      setStatus(pool.length + "曲を準備しました");
+      setStatus("");                        // 準備できたら文言は消す(曲数は出さない)
       els.startBtn.disabled = false;
     });
   }
 
   function cacheEls() {
     [
-      "bg", "stage", "card", "disc", "artwork", "ringProgress", "tonearm",
-      "trackName", "artistName", "genreTag", "genreBar",
-      "prevBtn", "playBtn", "nextBtn",
+      "app", "bg", "stage", "card", "disc", "artwork", "ringProgress", "tonearm",
+      "trackName", "artistName", "genreTag", "genreBar", "playbackStatus",
+      "prevBtn", "playBtn", "nextBtn", "likeBtn", "favPlayAll", "favActions", "returnDiscovery",
       "autoSkipBtn", "libraryBtn", "libCount", "libraryPanel", "libraryClose",
       "favList", "appleList", "appleSection", "appleConnectBtn", "appleConnectNote", "favCount", "appleCount",
       "lyricsBtn", "lyricsPanel", "lyricsClose", "lyricsTitle", "lyricsArtist", "lyricsBody",
-      "openApple", "toast", "startOverlay", "startBtn", "startStatus"
+      "openApple", "openSpotify", "seek", "seekHit", "seekTrack", "seekFill", "seekKnob", "timeCur", "timeRem",
+      "toast", "startOverlay", "startBtn", "startStatus",
+      "adBanner", "adGate", "adGateWatch",
+      "brandBtn", "infoPanel", "infoClose",
+      "tutorial", "tutStage", "tutTitle", "tutDesc", "tutDots", "tutNext", "tutSkip"
     ].forEach(function (id) { els[id] = document.getElementById(id); });
     els.badgeLike = document.querySelector(".badge-like");
     els.badgeNope = document.querySelector(".badge-nope");
@@ -468,6 +477,27 @@
   function currentTrack() { return state.order[state.pos]; }
 
   function gotoNext() {
+    if (state.favoriteQueue) {
+      var remaining = state.order.slice(state.pos + 1).concat(state.order.slice(0, state.pos + 1));
+      remaining = remaining.filter(function (t) { return existsIn(state.fav, t.id); });
+      if (!remaining.length) {
+        var saved = state.discovery;
+        state.favoriteQueue = false;
+        state.discovery = null;
+        if (saved) { state.order = saved.order; state.pos = saved.pos; }
+        else buildOrder();
+        applyAutoSkip();
+        loadCurrent(true);
+        toast("お気に入りが空になったため曲探しに戻りました");
+        return;
+      }
+      var next = remaining[0];
+      state.order = state.order.filter(function (t) { return existsIn(state.fav, t.id); });
+      state.pos = state.order.indexOf(next);
+      loadCurrent(true);
+      countSwipeForAd();
+      return;
+    }
     state.pos++;
     if (state.pos >= state.order.length) {
       var more = makeOrder();
@@ -476,6 +506,61 @@
       state.order = state.order.concat(more);
     }
     loadCurrent(true);
+    countSwipeForAd();                      // 広告ゲートのスワイプ数カウント
+  }
+
+  /* =========================================================
+     広告（プレースホルダー）
+     ★ ADS_ENABLED でまとめてON/OFF。
+        - App Store 初回提出時は false（広告ゲート/バナーを完全に無効化）→ 審査を通す
+        - AdMob準備・公開後に true にして、下の各関数へ実広告SDKを差し込む
+     - 下部バナー: #adBanner に後で AdSense/AdMob の枠を差し込む
+     - 強制ゲート: 40曲スワイプごとに「広告を見て続ける」を提示(視聴必須)
+     ========================================================= */
+  var ADS_ENABLED = false;      // ★ ここ1行で広告ON/OFF（提出時false / 運用時true）
+  var AD_GATE_EVERY = 40;       // 何曲スワイプごとにゲートを出すか
+  var swipeCount = 0;
+  var adResumePlaying = false;
+  var adGateOpen = false;        // 強制ゲート表示中(操作ブロック用)
+
+  function countSwipeForAd() {
+    if (!ADS_ENABLED) return;             // 広告OFF時はゲートを出さない
+    swipeCount++;
+    if (swipeCount % AD_GATE_EVERY === 0) showAdGate();
+  }
+
+  // 強制広告ゲート: 広告を見るまで再生・スワイプをブロックする
+  function showAdGate() {
+    if (!els.adGate) return;
+    adGateOpen = true;
+    adResumePlaying = state.playing;        // ゲート中は停止、視聴後に元へ戻す
+    if (useMK()) { var m = mkInstance(); if (m && m.isPlaying) m.pause(); }
+    else { try { audio.pause(); } catch (e) {} }
+    setPlaying(false);
+    els.adGate.classList.remove("hidden");
+  }
+  function closeAdGate() {
+    if (!els.adGate) return;
+    adGateOpen = false;
+    els.adGate.classList.add("hidden");
+    if (adResumePlaying) {                   // 視聴後、元が再生中なら再開
+      if (useMK()) { var m = mkInstance(); if (m) Promise.resolve(m.play()).then(function () { setPlaying(true); }).catch(function () {}); }
+      else { var p = audio.play(); if (p && p.then) p.then(function () { setPlaying(true); }).catch(function () {}); else setPlaying(true); }
+    }
+  }
+  // ▼ 実装ポイント：ここにリワード広告SDK(AdMob等)を呼ぶ。今はプレースホルダー。
+  //   実装時の注意: 広告が配信されない(no-fill)場合は done() を呼んで続行させ、
+  //   ユーザーを完全にロックしないこと(規約・体験の両面で必須)。
+  function showRewardedAd(done) {
+    toast("（ここにリワード広告）視聴ありがとうございます！");
+    setTimeout(done, 600);
+  }
+  // ▼ 実装ポイント：ここにバナー広告SDKを差し込む。今はプレースホルダー枠を表示。
+  function initBannerAd() {
+    if (!els.adBanner) return;
+    if (!ADS_ENABLED) { els.adBanner.classList.add("hidden"); return; }  // 広告OFF時はバナー非表示
+    els.adBanner.classList.remove("hidden");
+    /* AdSense/AdMob のバナーを #adBanner に挿入する */
   }
   function gotoPrev() {
     if (state.pos > 0) state.pos--;
@@ -484,7 +569,10 @@
 
   // ジャンルチップ選択
   function selectBucket(b) {
-    if (state.bucket === b) return;
+    if (state.bucket === b && !state.favoriteQueue) return;
+    state.favoriteQueue = false;
+    state.discovery = null;
+    applyAutoSkip();
     var pool = (b === "all" || b === "osusume")
       ? state.tracks
       : state.tracks.filter(function (t) { return bucketsOf(t).indexOf(b) >= 0; });
@@ -514,8 +602,15 @@
     markSeen(t.id);                       // 再生済みとして記録(次回以降は後回し)
     els.trackName.textContent = t.trackName;
     els.artistName.textContent = t.artistName;
-    els.genreTag.textContent = t.genre || "";
-    els.genreTag.style.display = t.genre ? "" : "none";
+    els.genreTag.textContent = state.favoriteQueue ? "お気に入り · " + (state.pos + 1) + " / " + state.order.length : t.genre || "";
+    els.genreTag.style.display = (state.favoriteQueue || t.genre) ? "" : "none";
+    els.returnDiscovery.classList.toggle("hidden", !state.favoriteQueue);
+    els.genreBar.querySelectorAll(".chip").forEach(function (chip) {
+      var active = !state.favoriteQueue && chip.getAttribute("data-bucket") === state.bucket;
+      chip.classList.toggle("is-active", active);
+      chip.setAttribute("aria-pressed", String(active));
+    });
+    updateLikeButton();
     setAppleLink(t);                      // 「Apple Musicで開く」導線を更新
     setArtwork(t);
     setRing(0);
@@ -524,12 +619,102 @@
     preloadNext();
   }
 
-  // 各曲を Apple Music で開くリンク(誘導導線)。trackViewUrl が無ければ曲IDから組み立てる。
+  // 各曲を配信サービスで開くリンク(誘導導線)。
   function setAppleLink(t) {
-    if (!els.openApple) return;
-    var url = t.trackViewUrl || (t.id ? "https://music.apple.com/jp/song/" + t.id : "");
-    if (url) { els.openApple.href = url; els.openApple.classList.remove("hidden"); }
-    else { els.openApple.classList.add("hidden"); }
+    if (els.openApple) {
+      // Apple Music: trackViewUrl が無ければ曲IDから組み立てる
+      var url = t.trackViewUrl || (t.id ? "https://music.apple.com/jp/song/" + t.id : "");
+      if (url) { els.openApple.href = url; els.openApple.classList.remove("hidden"); }
+      else { els.openApple.classList.add("hidden"); }
+    }
+    if (els.openSpotify) {
+      // Spotify: 曲IDを持っていないので「アーティスト 曲名」の検索リンクにする。
+      // open.spotify.com はアプリが入っていれば自動で開き、無ければWebプレーヤーになる。
+      var q = spotifyQuery(t);
+      if (q) {
+        els.openSpotify.href = spotifyUrl(q);          // Webフォールバック用
+        els.openSpotify.setAttribute("data-q", q);     // アプリ起動用
+        els.openSpotify.classList.remove("hidden");
+      } else {
+        els.openSpotify.removeAttribute("data-q");
+        els.openSpotify.classList.add("hidden");
+      }
+    }
+  }
+
+  // Spotifyは端末で有効なURL形式が違う。実機で確認した結果は次の通り:
+  //   デスクトップ … /search/<q>         は結果が出る / /search/results/<q> はエラー
+  //   モバイル     … /search/results/<q> は結果が出る / /search/<q>         は空の検索画面
+  // そのため端末で出し分ける。
+  function spotifyUrl(q) {
+    var ua = navigator.userAgent || "";
+    var mobile = /iPhone|iPad|iPod|Android/i.test(ua) ||
+                 (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ""));
+    return "https://open.spotify.com/search/" + (mobile ? "results/" : "") + encodeURIComponent(q);
+  }
+
+  // Spotify は /search/* をアプリに渡す設定(apple-app-site-association)になっているが、
+  // 一度Safariで開くとその後もWebが優先されてしまい、アプリが起動しない。
+  // そこで spotify: スキームで直接アプリを呼び、開かなければWebへ落とす。
+  // 未インストールだと iOS が「リンクが無効です」を一度出してしまうため、
+  // 結果を覚えておき、2回目以降は最初からWebへ送って警告を出さない。
+  // (あとからSpotifyを入れた人のために、30日経ったら再判定する)
+  var LS_SPOTIFY_APP = "discoSwipe.spotifyApp.v1";
+  var SPOTIFY_RECHECK_MS = 30 * 24 * 60 * 60 * 1000;
+
+  function spotifyAppState() {
+    try {
+      var raw = localStorage.getItem(LS_SPOTIFY_APP);
+      if (!raw) return null;
+      var v = JSON.parse(raw);
+      if (v.has === false && Date.now() - (v.at || 0) > SPOTIFY_RECHECK_MS) return null; // 再判定
+      return v.has;
+    } catch (e) { return null; }
+  }
+  function rememberSpotifyApp(has) {
+    try { localStorage.setItem(LS_SPOTIFY_APP, JSON.stringify({ has: has, at: Date.now() })); }
+    catch (e) {}
+  }
+
+  function bindSpotifyOpen() {
+    if (!els.openSpotify) return;
+    els.openSpotify.addEventListener("click", function (e) {
+      var q = els.openSpotify.getAttribute("data-q");
+      if (!q) return;                                  // クエリが無ければ href 任せ
+      var web = els.openSpotify.href;
+      if (spotifyAppState() === false) return;         // アプリ無しと分かっている → href(Web)に任せる
+      e.preventDefault();
+      var left = false;
+      function onLeave() { left = true; }              // アプリへ遷移したら発火する
+      document.addEventListener("visibilitychange", onLeave);
+      window.addEventListener("pagehide", onLeave);
+      var timer = setTimeout(function () {
+        document.removeEventListener("visibilitychange", onLeave);
+        window.removeEventListener("pagehide", onLeave);
+        if (left || document.hidden) { rememberSpotifyApp(true); return; }
+        rememberSpotifyApp(false);                     // 開かなかった = 未インストール
+        window.open(web, "_blank");
+      }, 900);
+      try {
+        window.location.href = "spotify:search:" + encodeURIComponent(q);
+      } catch (_) {
+        clearTimeout(timer);
+        rememberSpotifyApp(false);
+        window.open(web, "_blank");
+      }
+    });
+  }
+
+  // 検索の当たりを良くするため、曲名の括弧書き・feat.・副題を落としてから渡す
+  function spotifyQuery(t) {
+    var title = (t.trackName || "")
+      .replace(/\(.*?\)|\[.*?\]/g, "")
+      .replace(/\s*-\s*(single|ep|remastered|from .*)$/i, "")
+      .replace(/\s*(feat\.|ft\.|featuring)\s.*$/i, "")
+      .trim();
+    var artist = leadArtist(t.artistName || "");
+    var q = (artist + " " + (title || t.trackName || "")).trim();
+    return q.length > 1 ? q : "";
   }
 
   // MusicKitで本編をキュー＆再生。失敗時はプレビューへフォールバック。
@@ -553,6 +738,7 @@
   function setArtwork(t) {
     var img = els.artwork;
     img.onerror = function () { img.onerror = null; if (t.artworkSmall) img.src = t.artworkSmall; };
+    img.alt = t.trackName + " — " + t.artistName + "のジャケット";
     img.src = t.artwork || t.artworkSmall || "";
     var bgUrl = t.artwork || t.artworkSmall || "";
     els.bg.style.backgroundImage = bgUrl ? 'url("' + bgUrl + '")' : "none";
@@ -568,6 +754,7 @@
     try { audio.pause(); } catch (e) {}
     try { audio.playbackRate = 1; } catch (e) {}   // 倍速の取り残しをリセット
     audio.src = t.previewUrl;
+    pendingSeek = null;                            // 前の曲で掴んでいた位置は持ち越さない
     try { audio.currentTime = 0; } catch (e) {}
     if (autoplay && state.started) {
       var p = audio.play();
@@ -584,6 +771,9 @@
     state.playing = on;
     els.tonearm.classList.toggle("on", on);
     els.playBtn.classList.toggle("playing", on);
+    els.playBtn.setAttribute("aria-label", on ? "一時停止" : "再生");
+    document.body.classList.toggle("is-playing", on);
+    if (els.playbackStatus) els.playbackStatus.textContent = on ? "再生中" : "一時停止";
   }
 
   // 毎フレーム: 再生中(かつ手回し中でない)はレコードを少しずつ回し、リングを滑らかに更新する。
@@ -592,7 +782,7 @@
     if (!rafLast) rafLast = ts;
     var dt = ts - rafLast;
     rafLast = ts;
-    if (!state.scrubbing) {
+    if (!state.scrubbing && !state.seeking) {   // 手回し中/シーク操作中は表示を指に任せる
       if (state.playing) {
         if (!reduceMotion) {
           discAngle = (discAngle + dt * ROT_DEG_PER_MS) % 360;
@@ -605,13 +795,13 @@
       var cur, d;
       if (useMK()) { var m = mkInstance(); cur = m.currentPlaybackTime || 0; d = m.currentPlaybackDuration || 0; }
       else { cur = audio.currentTime; d = audio.duration || 30; }
-      if (d > 0) setRing(cur / d);
+      if (d > 0) setRing(cur / d, cur, d);
     }
     requestAnimationFrame(animLoop);
   }
 
   function togglePlay() {
-    if (!state.started) return;
+    if (!state.started || adGateOpen || tutorialOpen) return;
     if (useMK()) {                                   // MusicKit本編再生の再生/停止
       var music = mkInstance();
       if (music.isPlaying) { music.pause(); setPlaying(false); }
@@ -629,18 +819,133 @@
     }
   }
 
-  function setRing(frac) {
-    els.ringProgress.style.strokeDashoffset = RING_LEN * (1 - Math.max(0, Math.min(1, frac)));
+  // 進捗表示。水平シークバー(Apple Music風)＋経過/残り時間を更新する。
+  function setRing(frac, cur, dur) {
+    frac = Math.max(0, Math.min(1, frac || 0));
+    if (els.ringProgress) els.ringProgress.style.strokeDashoffset = RING_LEN * (1 - frac);
+    if (els.seekFill) els.seekFill.style.width = (frac * 100) + "%";
+    if (els.seekKnob) els.seekKnob.style.left = (frac * 100) + "%";
+    if (els.timeCur && els.timeRem) {
+      if (dur == null) {                       // 引数が無い呼び出し(リセット時)は現在の音源から推定
+        dur = useMK() ? ((mkInstance() || {}).currentPlaybackDuration || 0) : (audio.duration || 30);
+        cur = frac * dur;
+      }
+      els.timeCur.textContent = fmtTime(cur);
+      els.timeRem.textContent = "-" + fmtTime(Math.max(0, dur - cur));
+    }
+    if (els.seekTrack) {
+      els.seekTrack.setAttribute("aria-valuenow", Math.round(frac * 100));
+      els.seekTrack.setAttribute("aria-valuetext", fmtTime(cur != null ? cur : 0));
+    }
+  }
+
+  /* =========================================================
+     シーク操作: バーをタップ/ドラッグして再生位置を移動する
+     ========================================================= */
+  var seekPid = null;
+
+  function curDuration() {
+    if (useMK()) return (mkInstance() || {}).currentPlaybackDuration || 0;
+    var d = audio.duration;
+    return (d && isFinite(d)) ? d : 30;    // メタデータ読込前は試聴尺(30秒)で仮置き
+  }
+  function curTime() {
+    return useMK() ? ((mkInstance() || {}).currentPlaybackTime || 0) : (audio.currentTime || 0);
+  }
+  // バー上のX座標 → 0〜1 の位置
+  function seekFracAt(clientX) {
+    var r = els.seekTrack.getBoundingClientRect();
+    if (!r.width) return 0;
+    return clamp((clientX - r.left) / r.width, 0, 1);
+  }
+  // 実際に再生位置を動かし、表示も更新する
+  function seekTo(frac) {
+    var dur = curDuration();
+    if (!(dur > 0)) return;
+    frac = clamp(frac, 0, 1);
+    var t = Math.min(frac * dur, Math.max(0, dur - 0.08));   // 末尾ぴったりは ended を誘発するので少し手前まで
+    if (useMK()) {
+      var m = mkInstance();
+      try { m.seekToTime(t); } catch (_) {}
+    } else if (audio.readyState < 1) {
+      pendingSeek = frac;                    // まだ尺が分からない → 読み込み後に反映
+    } else {
+      try { audio.currentTime = t; } catch (_) { pendingSeek = frac; }
+    }
+    setRing(t / dur, t, dur);
+  }
+  // 曲の読み込みが終わってから、掴んでいた位置へ反映する
+  var pendingSeek = null;
+  audio.addEventListener("loadedmetadata", function () {
+    if (pendingSeek == null) return;
+    var d = audio.duration, f = pendingSeek;
+    pendingSeek = null;
+    if (!(d > 0) || !isFinite(d)) return;
+    try { audio.currentTime = Math.min(f * d, Math.max(0, d - 0.08)); } catch (_) {}
+  });
+
+  function bindSeek() {
+    var hit = els.seekHit;
+    if (!hit || !els.seekTrack) return;
+
+    function active() { return state.started && !adGateOpen && !tutorialOpen; }
+
+    hit.addEventListener("pointerdown", function (e) {
+      if (!active() || !(curDuration() > 0)) return;
+      seekPid = e.pointerId;
+      state.seeking = true;
+      els.seek.classList.add("seeking");
+      if (hit.setPointerCapture) { try { hit.setPointerCapture(e.pointerId); } catch (_) {} }
+      seekTo(seekFracAt(e.clientX));
+      haptic();
+      if (e.cancelable) e.preventDefault();
+    });
+    hit.addEventListener("pointermove", function (e) {
+      if (seekPid === null || e.pointerId !== seekPid) return;
+      if (e.cancelable) e.preventDefault();
+      seekTo(seekFracAt(e.clientX));
+    });
+    function endSeek(e) {
+      if (seekPid === null || (e && e.pointerId !== seekPid)) return;
+      seekPid = null;
+      state.seeking = false;
+      els.seek.classList.remove("seeking");
+    }
+    hit.addEventListener("pointerup", endSeek);
+    hit.addEventListener("pointercancel", endSeek);
+    // 指を離す前にページ外へ出た場合の保険
+    window.addEventListener("pointerup", endSeek);
+
+    // キーボード操作(←→で5秒、Home/Endで先頭/末尾)
+    els.seekTrack.addEventListener("keydown", function (e) {
+      var dur = curDuration();
+      if (!active() || !(dur > 0)) return;
+      var step = 5, t = null;
+      if (e.key === "ArrowLeft")      t = curTime() - step;
+      else if (e.key === "ArrowRight") t = curTime() + step;
+      else if (e.key === "Home")       t = 0;
+      else if (e.key === "End")        t = dur;
+      if (t === null) return;
+      e.preventDefault();
+      seekTo(t / dur);
+    });
+  }
+  function fmtTime(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    var m = Math.floor(s / 60);
+    var r = s % 60;
+    return m + ":" + (r < 10 ? "0" : "") + r;
   }
 
   // オーディオイベント（リング更新は基本 animLoop、これは保険のフォールバック）
   audio.addEventListener("timeupdate", function () {
+    if (state.scrubbing || state.seeking) return;   // 手回し/シーク中は指の位置を上書きしない
     var d = audio.duration || 30;
-    if (d > 0) setRing(audio.currentTime / d);
+    if (d > 0) setRing(audio.currentTime / d, audio.currentTime, d);
   });
   // 30秒の試聴が終わっても自動で次へ行かず、その曲のまま停止する
   audio.addEventListener("ended", function () {
-    if (state.autoSkip) { softNext(); return; }     // 自動スキップON → 次の曲へ
+    if (state.autoSkip || state.favoriteQueue) { softNext(); return; }     // 自動スキップON → 次の曲へ
     // OFF: 同じ曲をくり返す（loop=trueなら通常ここは呼ばれない。loop非対応環境の保険）
     try { audio.currentTime = 0; } catch (e) {}
     setRing(0);
@@ -650,10 +955,14 @@
 
   // 自動スキップの反映: ONなら loop を切って ended→次へ、OFFなら loop でくり返し
   function applyAutoSkip() {
-    audio.loop = !state.autoSkip;
+    audio.loop = !(state.autoSkip || state.favoriteQueue);
     if (!els.autoSkipBtn) return;
-    els.autoSkipBtn.classList.toggle("on", state.autoSkip);
-    els.autoSkipBtn.setAttribute("aria-pressed", state.autoSkip ? "true" : "false");
+    var on = state.autoSkip || state.favoriteQueue;
+    els.autoSkipBtn.classList.toggle("on", on);
+    els.autoSkipBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    els.autoSkipBtn.disabled = state.favoriteQueue;
+    els.autoSkipBtn.setAttribute("aria-label", state.favoriteQueue ? "お気に入りを連続再生中" : "自動スキップ");
+    els.autoSkipBtn.querySelector("span").textContent = state.favoriteQueue ? "連続再生" : "自動スキップ";
   }
   function toggleAutoSkip() {
     state.autoSkip = !state.autoSkip;
@@ -698,7 +1007,7 @@
   //   ・ほぼ動かさず SCRUB_HOLD_MS だけ長押しすると「手回し(スクラッチ)」モードに入り、回すと早送り/巻き戻し
   //   ・ほぼ動かさず素早く離す＝タップ(再生/停止)
   function onDown(e) {
-    if (state.locked || !state.started) return;
+    if (state.locked || !state.started || adGateOpen) return;
     var c = discCenter();
     drag = {
       x0: e.clientX, y0: e.clientY, dx: 0, dy: 0,
@@ -763,7 +1072,7 @@
     var dur = audio.duration || 30;
     var t = clamp(drag.scrubBaseTime + rel * SEC_PER_DEG, 0, dur);
     try { audio.currentTime = t; } catch (_) {}
-    setRing(t / dur);
+    setRing(t / dur, t, dur);
     updateScratch(dSwept);                  // 時計回り=早送り / 反時計回り=巻き戻し音
   }
 
@@ -959,7 +1268,7 @@
   }
 
   function commit(action) {
-    if (state.locked) return;
+    if (state.locked || adGateOpen || tutorialOpen) return;
     var h = window.innerHeight;
     if (action === "like") {                       // 左右スワイプ=いいね(曲は飛ばさず、その場でいいね)
       likeCurrent();
@@ -976,7 +1285,7 @@
 
   // いいね(左右スワイプ / ダブルタップ): 曲は進めず、お気に入り登録＋ハート演出だけ行う
   function likeCurrent() {
-    if (!state.started) return;
+    if (!state.started || adGateOpen || tutorialOpen) return;
     var cur = currentTrack();
     if (!cur) return;
     var already = existsIn(state.fav, cur.id);
@@ -997,7 +1306,7 @@
   }
 
   function goPrev() {
-    if (state.locked || !state.started) return;
+    if (state.locked || !state.started || adGateOpen) return;
     if (state.pos <= 0) { toast("これ以上は戻れません"); return; }
     haptic();
     swapCard(0, window.innerHeight * 1.15, 0, 0, -window.innerHeight * 0.5, gotoPrev);
@@ -1005,13 +1314,13 @@
 
   // 次へボタン(旧:最初から再生ボタン)
   function goNext() {
-    if (state.locked || !state.started) return;
+    if (state.locked || !state.started || adGateOpen) return;
     haptic();
     swapCard(0, -window.innerHeight * 1.15, 0, 0, window.innerHeight * 0.5, gotoNext);
   }
 
   function softNext() {                         // 30秒経過の自動送り(フェード)
-    if (state.locked) return;
+    if (state.locked || adGateOpen || tutorialOpen) return;
     swapCard(0, 0, 0, 0, 44, gotoNext);
   }
 
@@ -1110,7 +1419,7 @@
       setPlaying(!!music.isPlaying);
       var PS = window.MusicKit && MusicKit.PlaybackStates;
       if (PS && (music.playbackState === PS.completed || music.playbackState === PS.ended)) {
-        if (state.autoSkip) softNext();               // 本編が終わったら次の曲へ(ONのとき)
+        if (state.autoSkip || state.favoriteQueue) softNext();               // 本編が終わったら次の曲へ(ONのとき)
         else setPlaying(false);
       }
     });
@@ -1177,7 +1486,8 @@
   function slim(t) {
     return {
       id: t.id, trackName: t.trackName, artistName: t.artistName,
-      artwork: t.artworkSmall || t.artwork, trackViewUrl: t.trackViewUrl,
+      artwork: t.artwork || t.artworkSmall, trackViewUrl: t.trackViewUrl,
+      previewUrl: t.previewUrl, genre: t.genre, buckets: t.buckets,
       bucket: t.bucket || bucketOf(t)         // おすすめ学習用にジャンル区分を保持
     };
   }
@@ -1187,11 +1497,160 @@
     els.libCount.textContent = state.fav.length;
     els.favCount.textContent = state.fav.length;
     els.appleCount.textContent = state.apple.length;
+    updateLikeButton();
   }
 
   /* ---------- ライブラリパネル ---------- */
-  function openLibrary() { renderLists(); els.libraryPanel.classList.remove("hidden"); }
-  function closeLibrary() { els.libraryPanel.classList.add("hidden"); }
+  function openLibrary() {
+    renderLists();
+    els.libraryPanel.classList.remove("hidden");
+    els.libraryPanel.setAttribute("aria-hidden", "false");
+    els.libraryClose.focus();
+  }
+  function closeLibrary() {
+    els.libraryPanel.classList.add("hidden");
+    els.libraryPanel.setAttribute("aria-hidden", "true");
+    els.libraryBtn.focus();
+  }
+
+  function updateLikeButton() {
+    if (!els.likeBtn) return;
+    var t = currentTrack(), saved = !!t && existsIn(state.fav, t.id);
+    els.likeBtn.disabled = !t;
+    els.likeBtn.classList.toggle("is-liked", saved);
+    els.likeBtn.setAttribute("aria-pressed", String(saved));
+    els.likeBtn.setAttribute("aria-label", saved ? "この曲のいいねを取り消す" : "この曲にいいね");
+  }
+  function resolveSavedTrack(t) {
+    return state.tracks.find(function (x) { return String(x.id) === String(t.id); }) || (t.previewUrl ? t : null);
+  }
+  function playFavorites(id) {
+    if (!state.started || state.locked || adGateOpen || tutorialOpen) return;
+    var queue = state.fav.map(resolveSavedTrack).filter(Boolean);
+    if (!queue.length) { toast("再生できるお気に入りがありません"); return; }
+    var pos = id == null ? 0 : queue.findIndex(function (t) { return String(t.id) === String(id); });
+    if (pos < 0) { toast("この曲は現在再生できません"); return; }
+    if (!state.favoriteQueue) state.discovery = { order: state.order, pos: state.pos };
+    state.favoriteQueue = true;
+    state.order = queue;
+    state.pos = pos;
+    applyAutoSkip();
+    closeLibrary();
+    loadCurrent(true);
+    toast("お気に入りを連続再生します");
+  }
+  function returnToDiscovery() {
+    if (!state.discovery || state.locked || adGateOpen) return;
+    state.order = state.discovery.order;
+    state.pos = state.discovery.pos;
+    state.discovery = null;
+    state.favoriteQueue = false;
+    applyAutoSkip();
+    loadCurrent(true);
+    toast("曲探しに戻りました");
+  }
+
+  /* ---------- メニュー（使い方・利用規約・プライバシー等） ---------- */
+  function openInfo() {
+    els.infoPanel.classList.remove("hidden");
+    els.infoPanel.setAttribute("aria-hidden", "false");
+    els.infoClose.focus();
+  }
+  function closeInfo() {
+    els.infoPanel.classList.add("hidden");
+    els.infoPanel.setAttribute("aria-hidden", "true");
+    els.brandBtn.focus();
+  }
+
+  /* ---------- テーマ(ダーク/ライト)切替 ----------
+     設定メニューの「テーマ」から切替。選択は保存され、次回以降も維持。
+     未選択時は端末の外観設定(prefers-color-scheme)に従う。 */
+  var LS_THEME = "discoSwipe.theme.v1";
+  function applyTheme(t) {
+    var light = (t === "light");
+    document.body.classList.toggle("light", light);
+    var meta = document.querySelector('meta[name="theme-color"]');   // ステータスバー色も同期
+    if (meta) meta.setAttribute("content", light ? "#f5f5f3" : "#191a1c");
+    var bd = document.getElementById("themeDark"), bl = document.getElementById("themeLight");
+    if (bd) bd.classList.toggle("on", !light);
+    if (bl) bl.classList.toggle("on", light);
+    try { localStorage.setItem(LS_THEME, light ? "light" : "dark"); } catch (e) {}
+  }
+  function initTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem(LS_THEME); } catch (e) {}
+    if (!saved) saved = "light";           // 既定はライト(ウォームな基調デザイン)
+    applyTheme(saved);
+  }
+
+  /* =========================================================
+     初回チュートリアル（スワイプ操作のモーション付きガイド）
+     初回起動時のみ表示。ステップごとに手のアイコンが実際の
+     ジェスチャー方向へ動くアニメで操作を説明する。
+     ========================================================= */
+  var LS_TUTORIAL = "discoSwipe.tutorialSeen.v1";
+  var TUT_STEPS = [
+    { anim: "tut-anim-up",   title: "上にスワイプ ↑",  desc: "次の曲へ進みます。気に入らなければどんどん飛ばそう。" },
+    { anim: "tut-anim-down", title: "下にスワイプ ↓",  desc: "ひとつ前の曲に戻ります。" },
+    { anim: "tut-anim-side", title: "左右にスワイプ ←→", desc: "いいね ♥ でお気に入りに保存。ダブルタップでもOK。曲はそのまま流れ続けます。" },
+    { anim: "tut-anim-tap",  title: "タップ",           desc: "再生 / 停止を切り替えます。" },
+    { anim: "tut-anim-hold", title: "長押しして回す",   desc: "レコードを長押しして回すと早送り / 巻き戻し。レコードの外を長押しすると2倍速。" }
+  ];
+  var tutIndex = 0;
+  var tutorialOpen = false, tutorialResume = false;
+
+  function tutorialSeen() { try { return localStorage.getItem(LS_TUTORIAL) === "1"; } catch (e) { return true; } }
+  function markTutorialSeen() { try { localStorage.setItem(LS_TUTORIAL, "1"); } catch (e) {} }
+
+  function showTutorial(firstRun) {
+    if (!els.tutorial || tutorialOpen) return;
+    tutorialResume = firstRun === true || state.playing;
+    tutorialOpen = true;
+    ++audioSeq;
+    if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+    if (useMK()) { var music = mkInstance(); if (music) music.pause(); }
+    else audio.pause();
+    setPlaying(false);
+    if (els.app) els.app.inert = true;
+    tutIndex = 0;
+    // ドット(進捗)を生成
+    els.tutDots.textContent = "";
+    for (var i = 0; i < TUT_STEPS.length; i++) {
+      var d = document.createElement("span");
+      d.className = "tut-dot";
+      els.tutDots.appendChild(d);
+    }
+    renderTutStep();
+    els.tutorial.classList.remove("hidden");
+    els.tutNext.focus();
+  }
+  function renderTutStep() {
+    var s = TUT_STEPS[tutIndex];
+    // アニメクラスを一旦全部外して付け直す(再スタート)
+    els.tutStage.className = "tut-stage";
+    void els.tutStage.offsetWidth;              // リフローでアニメをリセット
+    els.tutStage.classList.add(s.anim);
+    els.tutTitle.textContent = s.title;
+    els.tutDesc.textContent = s.desc;
+    var dots = els.tutDots.children;
+    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle("on", i === tutIndex);
+    els.tutNext.textContent = (tutIndex === TUT_STEPS.length - 1) ? "はじめる ▶" : "次へ";
+  }
+  function nextTutStep() {
+    if (tutIndex < TUT_STEPS.length - 1) { tutIndex++; renderTutStep(); }
+    else closeTutorial();
+  }
+  function closeTutorial() {
+    if (els.tutorial) els.tutorial.classList.add("hidden");
+    markTutorialSeen();
+    tutorialOpen = false;
+    if (els.app) els.app.inert = false;
+    if (els.playBtn) els.playBtn.focus();
+    if (tutorialResume) {
+      tutorialResume = false;
+      togglePlay();
+    }
+  }
 
   /* ---------- 歌詞（無料の lyrics.ovh から取得。無ければ検索リンクにフォールバック） ---------- */
   function primaryArtist(name) { return (name || "").split(/,|&|feat\.|ft\.|with /i)[0].trim(); }
@@ -1240,7 +1699,8 @@
   }
 
   function renderLists() {
-    renderList(els.favList, state.fav, "まだいいねした曲はありません。左右スワイプでいいね！", removeFavorite);
+    els.favPlayAll.disabled = !state.fav.some(resolveSavedTrack);
+    renderList(els.favList, state.fav, "まだいいねした曲はありません。左右スワイプでいいね！", removeFavorite, true);
     renderList(els.appleList, state.apple, "まだ追加はありません。", removeApple);
   }
   // いいね(お気に入り)から削除 — 間違えていいねした曲を後から取り消せる
@@ -1256,7 +1716,7 @@
     updateCounts();
     renderLists();
   }
-  function renderList(ul, arr, emptyMsg, onRemove) {
+  function renderList(ul, arr, emptyMsg, onRemove, playable) {
     ul.textContent = "";
     if (!arr.length) {
       var li = document.createElement("li");
@@ -1275,17 +1735,32 @@
       var b = document.createElement("b"); b.textContent = t.trackName;
       var sp = document.createElement("span"); sp.textContent = t.artistName;
       meta.appendChild(b); meta.appendChild(sp);
-      li.appendChild(img); li.appendChild(meta);
+      if (playable) {
+        var play = document.createElement("button");
+        play.type = "button";
+        play.className = "lib-track-play";
+        play.setAttribute("aria-label", t.trackName + " / " + t.artistName + " を再生");
+        play.disabled = !resolveSavedTrack(t);
+        var glyph = document.createElement("span");
+        glyph.className = "lib-play-glyph";
+        glyph.textContent = "▶";
+        glyph.setAttribute("aria-hidden", "true");
+        play.appendChild(img); play.appendChild(meta); play.appendChild(glyph);
+        play.addEventListener("click", function () { playFavorites(t.id); });
+        li.appendChild(play);
+      } else { li.appendChild(img); li.appendChild(meta); }
       if (t.trackViewUrl) {
         var a = document.createElement("a");
-        a.className = "lib-open"; a.textContent = "開く";
+        a.className = "lib-open"; a.textContent = "↗";
+        a.setAttribute("aria-label", t.trackName + "をApple Musicで開く");
+        a.title = "Apple Musicで開く";
         a.href = t.trackViewUrl; a.target = "_blank"; a.rel = "noopener noreferrer";
         li.appendChild(a);
       }
       if (onRemove) {                              // 削除(×)ボタン
         var del = document.createElement("button");
         del.className = "lib-del"; del.type = "button";
-        del.setAttribute("aria-label", "削除"); del.textContent = "×";
+        del.setAttribute("aria-label", t.trackName + "を一覧から削除"); del.textContent = "×";
         del.addEventListener("click", (function (id) { return function () { onRemove(id); }; })(t.id));
         li.appendChild(del);
       }
@@ -1303,9 +1778,20 @@
     els.stage.addEventListener("pointermove", onMove);
     els.stage.addEventListener("pointerup", onUp);
     els.stage.addEventListener("pointercancel", onUp);
+    bindSeek();                                              // シークバーで再生位置を移動
+    bindSpotifyOpen();                                       // Spotifyはアプリ優先で開く
 
     els.prevBtn.addEventListener("click", goPrev);          // 一個前に戻る
     els.playBtn.addEventListener("click", togglePlay);        // 再生 / 停止
+    els.likeBtn.addEventListener("click", function () {
+      if (!state.started || adGateOpen || tutorialOpen) return;
+      var t = currentTrack();
+      if (!t) return;
+      if (existsIn(state.fav, t.id)) { removeFavorite(t.id); toast("いいねを取り消しました"); }
+      else likeCurrent();
+    });
+    els.favPlayAll.addEventListener("click", function () { playFavorites(); });
+    els.returnDiscovery.addEventListener("click", returnToDiscovery);
     els.nextBtn.addEventListener("click", goNext);           // 次の曲へ
 
     // ジャンルチップ
@@ -1323,6 +1809,34 @@
       if (e.target === els.libraryPanel) closeLibrary();
     });
 
+    // メニュー（使い方・規約など）: ロゴをタップで開く
+    if (els.brandBtn) els.brandBtn.addEventListener("click", openInfo);
+    if (els.infoClose) els.infoClose.addEventListener("click", closeInfo);
+    if (els.infoPanel) els.infoPanel.addEventListener("click", function (e) {
+      if (e.target === els.infoPanel) closeInfo();
+    });
+    // テーマ切替(ダーク/ライト)
+    var tbd = document.getElementById("themeDark"), tbl = document.getElementById("themeLight");
+    if (tbd) tbd.addEventListener("click", function () { applyTheme("dark"); });
+    if (tbl) tbl.addEventListener("click", function () { applyTheme("light"); });
+
+    // 初回チュートリアル
+    if (els.tutNext) els.tutNext.addEventListener("click", nextTutStep);
+    if (els.tutSkip) els.tutSkip.addEventListener("click", closeTutorial);
+    var replay = document.getElementById("replayTutorial");
+    if (replay) replay.addEventListener("click", function () { closeInfo(); showTutorial(); });
+
+    // アコーディオン: 見出しタップでその項目だけ開く(他は閉じる)
+    var accHeads = document.querySelectorAll("#infoPanel .acc-head");
+    for (var ai = 0; ai < accHeads.length; ai++) {
+      accHeads[ai].addEventListener("click", function () {
+        var item = this.parentNode, wasOpen = item.classList.contains("open");
+        var all = document.querySelectorAll("#infoPanel .acc-item");
+        for (var k = 0; k < all.length; k++) all[k].classList.remove("open");
+        if (!wasOpen) item.classList.add("open");   // 閉じてたら開く / 開いてたら閉じる(トグル)
+      });
+    }
+
     // 歌詞ボタンは廃止（パネル/取得関数は未使用のため残置）
     var tabs = document.querySelectorAll(".lib-tab");
     for (var i = 0; i < tabs.length; i++) {
@@ -1330,6 +1844,7 @@
         for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle("is-active", tabs[j] === this);
         var tab = this.getAttribute("data-tab");
         els.favList.classList.toggle("hidden", tab !== "fav");
+        els.favActions.classList.toggle("hidden", tab !== "fav");
         els.appleSection.classList.toggle("hidden", tab !== "apple");
       });
     }
@@ -1337,9 +1852,15 @@
 
     els.startBtn.addEventListener("click", startApp);
 
+    // 強制広告ゲート（広告を見るまで続行不可）
+    if (els.adGateWatch) els.adGateWatch.addEventListener("click", function () {
+      showRewardedAd(closeAdGate);          // 広告を見る → (プレースホルダー) → 続行
+    });
+
     // PC/検証用キーボード操作
     window.addEventListener("keydown", function (e) {
-      if (!state.started) return;
+      if (!state.started || tutorialOpen || !els.libraryPanel.classList.contains("hidden") || !els.infoPanel.classList.contains("hidden")) return;
+      if (e.target.closest && e.target.closest("button, a, input, select, textarea")) return;
       if (e.key === "ArrowUp")   { e.preventDefault(); commit("next"); }
       else if (e.key === "ArrowDown") { e.preventDefault(); commit("prev"); }
       else if (e.key === "ArrowRight" || e.key === "ArrowLeft") likeCurrent();  // ←→=いいね(曲はそのまま)
@@ -1353,7 +1874,8 @@
     els.startOverlay.classList.add("hidden");
     ensureAudioCtx();                          // スクラッチ音用のAudioContextもこの操作で解放
     if (actx && actx.state === "suspended") { try { actx.resume(); } catch (e) {} }
-    loadAudio(currentTrack(), true);           // ユーザー操作内でplay()→iOSのオーディオ解放
+    if (!tutorialSeen()) showTutorial(true);
+    else loadCurrent(true);
   }
 
   /* =========================================================
@@ -1516,7 +2038,11 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { els.toast.classList.remove("show"); }, 1400);
   }
-  function setStatus(s) { if (els.startStatus) els.startStatus.textContent = s; }
+  function setStatus(s) {
+    if (!els.startStatus) return;
+    els.startStatus.textContent = s;
+    els.startStatus.style.display = s ? "" : "none";   // 空なら行ごと詰める
+  }
 
   function loadLS(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch (e) { return []; } }
   function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }

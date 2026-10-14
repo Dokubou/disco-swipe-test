@@ -8,14 +8,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Disco Swipe">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b0b10">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#f5f5f3">
 <title>Disco Swipe — 音楽ディスカバリー</title>
 <!-- ホーム画面に追加(スマホでアプリのように使う)用 -->
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=40">
 </head>
 <body>
 
@@ -26,17 +26,19 @@
   <main id="app" class="app" aria-hidden="false">
 
     <header class="topbar">
-      <div class="brand">
+      <button id="brandBtn" class="brand" type="button" aria-label="メニュー・使い方・利用規約">
         <span class="brand-dot"></span>
-        <span class="brand-name">DISCO<span class="brand-thin">SWIPE</span></span>
-      </div>
+        <span class="brand-name">disco<span class="brand-thin">swipe</span></span>
+        <svg class="brand-caret" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+      </button>
       <div class="topbar-actions">
         <button id="autoSkipBtn" class="skip-toggle" type="button" aria-pressed="false" aria-label="自動スキップ">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg>
           <span>自動スキップ</span>
         </button>
         <button id="libraryBtn" class="lib-btn" type="button" aria-label="ライブラリを開く">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M6 5h12M8 2h8M10 12l5 3-5 3z"/></svg>
+          <span class="library-label">ライブラリ</span>
           <span id="libCount" class="lib-count">0</span>
         </button>
       </div>
@@ -44,7 +46,7 @@
 
     <!-- ジャンル絞り込みチップ(横スクロール) -->
     <nav id="genreBar" class="genres" aria-label="ジャンルを選ぶ">
-      <button class="chip is-active" data-bucket="osusume" type="button">★ おすすめ</button>
+      <button class="chip is-active" data-bucket="osusume" type="button">おすすめ</button>
       <button class="chip" data-bucket="all" type="button">すべて</button>
       <button class="chip" data-bucket="jpop" type="button">J-POP</button>
       <button class="chip" data-bucket="anime" type="button">アニソン</button>
@@ -71,15 +73,14 @@
         <!-- 回転するレコード本体(spinはこの要素だけに掛けてドラッグ変形と干渉させない) -->
         <div id="disc" class="disc">
           <div class="disc-sheen"></div>
-          <div class="label">
+          <div class="label artwork-cover">
             <img id="artwork" class="label-img" alt="" draggable="false">
           </div>
-          <div class="hole"></div>
+          <div class="hole" aria-hidden="true"></div>
         </div>
 
-        <!-- 30秒試聴のプログレスリング -->
-        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="ring-bg" cx="50" cy="50" r="48"></circle>
+        <!-- 進捗は下部の水平バーに一本化(リングは廃止)。JS互換のため非表示で保持 -->
+        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true" hidden>
           <circle id="ringProgress" class="ring-fg" cx="50" cy="50" r="48"></circle>
         </svg>
 
@@ -95,13 +96,43 @@
 
     <!-- 曲情報 -->
     <section class="track-info">
-      <h1 id="trackName" class="track-name">読み込み中…</h1>
-      <p id="artistName" class="track-artist"></p>
-      <div class="track-actions">
+      <div class="track-overline">
         <span id="genreTag" class="track-genre"></span>
-        <a id="openApple" class="apple-open" target="_blank" rel="noopener noreferrer">Apple Musicで開く ↗</a>
+        <span class="playback-indicator"><span class="playback-dot" aria-hidden="true"></span><span id="playbackStatus">一時停止</span></span>
       </div>
+      <div class="track-head">
+        <div class="track-titles">
+          <h1 id="trackName" class="track-name">読み込み中…</h1>
+          <p id="artistName" class="track-artist"></p>
+        <div class="open-links">
+          <a id="openApple" class="apple-open" target="_blank" rel="noopener noreferrer" aria-label="Apple Musicで開く">
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4 6.6v5.9a2.4 2.4 0 1 1-1.3-2.1V9.7l-3.9.8v5.1a2.4 2.4 0 1 1-1.3-2.1V8.7l6.5-1.3v1.2z"/></svg><span>Apple Music</span><span class="external-arrow" aria-hidden="true">↗</span>
+          </a>
+          <a id="openSpotify" class="apple-open" target="_blank" rel="noopener noreferrer" aria-label="Spotifyで開く">
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><g fill="none" stroke="var(--bg)" stroke-width="1.8" stroke-linecap="round"><path d="M6.9 9.1c3.3-.9 7.7-.6 10.5 1.1"/><path d="M7.8 12.1c2.8-.8 6.4-.5 8.8.9"/><path d="M8.7 15.1c2.2-.6 4.9-.4 6.9.7"/></g></svg><span>Spotify</span><span class="external-arrow" aria-hidden="true">↗</span>
+          </a>
+        </div>
+        </div>
+        <button id="likeBtn" class="track-like" type="button" aria-label="この曲にいいね" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        </button>
+      </div>
+
+      <!-- 再生プログレス(Apple Music風の水平バー / ドラッグで再生位置を移動) -->
+      <div id="seek" class="seek">
+        <div id="seekHit" class="seek-hit">
+          <div id="seekTrack" class="seek-track" role="slider" tabindex="0"
+               aria-label="再生位置" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0:00">
+            <span id="seekFill" class="seek-fill"></span>
+            <span id="seekKnob" class="seek-knob" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div class="seek-times"><span id="timeCur">0:00</span><span id="timeRem">-0:30</span></div>
+      </div>
+
     </section>
+
+    <button id="returnDiscovery" class="return-discovery hidden" type="button">曲探しに戻る</button>
 
     <!-- 下部コントロール -->
     <nav class="controls" aria-label="再生コントロール">
@@ -119,12 +150,29 @@
       </button>
     </nav>
 
-    <p class="hint">↑↓ 曲を切り替え&nbsp;&nbsp;/&nbsp;&nbsp;←→・ダブルタップ＝いいね ♥</p>
-    <p class="hint hint-sub">タップ＝再生/停止&nbsp;・&nbsp;レコードを長押しして回す＝早送り/巻き戻し&nbsp;・&nbsp;レコード外を長押し＝2倍速</p>
+
+
+    <!-- 下部バナー広告スロット（後で AdSense / AdMob の枠をここに差し込む） -->
+    <!-- 広告未接続でも高さを確保。配信枠の高さは --banner-height で調整する。 -->
+    <div class="ad-dock">
+      <div id="adBanner" class="ad-banner" aria-hidden="true">
+        <span class="ad-banner-label">広告スペース（バナー）</span>
+      </div>
+    </div>
   </main>
 
   <!-- 通知トースト -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- 40曲ごとの強制広告ゲート（プレースホルダー：後でリワード広告を差し込む） -->
+  <div id="adGate" class="ad-gate hidden" role="dialog" aria-modal="true" aria-labelledby="adGateTitle">
+    <div class="ad-gate-inner">
+      <h2 id="adGateTitle" class="ad-gate-title">ここまで40曲聴きました</h2>
+      <p class="ad-gate-sub">続きを再生するには広告の視聴が必要です。<br>広告を見ると続きを再生できます。</p>
+      <div class="ad-gate-slot">広告スペース（リワード）</div>
+      <button id="adGateWatch" class="ad-gate-btn primary" type="button">広告を見て続ける ▶</button>
+    </div>
+  </div>
 
   <!-- iOSは音声再生にユーザー操作が必須なので、最初にタップさせる -->
   <div id="startOverlay" class="start-overlay">
@@ -147,6 +195,10 @@
       <div class="library-tabs">
         <button class="lib-tab is-active" data-tab="fav" type="button">お気に入り <span id="favCount">0</span></button>
         <button class="lib-tab" data-tab="apple" type="button">Apple Music追加 <span id="appleCount">0</span></button>
+      </div>
+      <div id="favActions" class="fav-actions">
+        <button id="favPlayAll" class="fav-play-all" type="button">まとめて聴く</button>
+        <p>曲をタップして再生。次の曲へ自動で進みます。</p>
       </div>
       <ul id="favList" class="lib-list"></ul>
       <div id="appleSection" class="hidden">
@@ -173,6 +225,104 @@
     </div>
   </div>
 
-  <script src="app.js?v=40"></script>
+  <!-- 初回チュートリアル（スワイプ操作のモーション付きガイド） -->
+  <div id="tutorial" class="tutorial hidden" role="dialog" aria-modal="true" aria-label="使い方ガイド">
+    <div class="tutorial-inner">
+      <div id="tutStage" class="tut-stage">
+        <div class="tut-card"></div>
+        <div id="tutHand" class="tut-hand"></div>
+        <div id="tutHeart" class="tut-heart">♥</div>
+      </div>
+      <h2 id="tutTitle" class="tut-title"></h2>
+      <p id="tutDesc" class="tut-desc"></p>
+      <div id="tutDots" class="tut-dots"></div>
+      <button id="tutNext" class="tut-btn primary" type="button">次へ</button>
+      <button id="tutSkip" class="tut-btn ghost" type="button">スキップ</button>
+    </div>
+  </div>
+
+  <!-- メニュー（使い方・規約・プライバシー・権利・このアプリについて） -->
+  <div id="infoPanel" class="library hidden" aria-hidden="true">
+    <div class="library-sheet">
+      <div class="library-head">
+        <h2>Disco Swipe について</h2>
+        <button id="infoClose" class="library-close" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="info-body">
+
+        <!-- テーマ切替(ダーク/ライト) -->
+        <div class="theme-row">
+          <span class="theme-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5h0l1 3h-2l1-3zm0 20-1-3h2l-1 3zM2 12l3-1v2l-3-1zm20 0-3 1v-2l3 1zM4.9 4.9l2.8 1.4-1.4 1.4L4.9 4.9zm14.2 14.2-2.8-1.4 1.4-1.4 1.4 2.8zM19.1 4.9l-1.4 2.8-1.4-1.4 2.8-1.4zM4.9 19.1l1.4-2.8 1.4 1.4-2.8 1.4z"/></svg>テーマ</span>
+          <div class="theme-seg">
+            <button id="themeDark" class="theme-btn" type="button">ダーク</button>
+            <button id="themeLight" class="theme-btn" type="button">ライト</button>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h3v-8H5v-1a7 7 0 0 1 14 0v1h-3v8h3a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>使い方</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <ul>
+              <li><b>上スワイプ ↑</b>：次の曲へ</li>
+              <li><b>下スワイプ ↓</b>：前の曲へ</li>
+              <li><b>左右スワイプ ←→ / ダブルタップ</b>：いいね ♥</li>
+              <li><b>タップ</b>：再生 / 停止</li>
+              <li><b>レコードを長押しして回す</b>：早送り / 巻き戻し</li>
+              <li><b>レコードの外を長押し</b>：2倍速</li>
+              <li>上部のジャンルチップで絞り込み。<b>おすすめ</b>は、いいねやよく聴く曲から好みを学習します。</li>
+              <li>右上のライブラリアイコンから、保存した曲を聴き直せます。曲名の横のハートで、いいね・取り消しができます。</li>
+            </ul>
+            <button id="replayTutorial" class="tut-btn primary" type="button">操作ガイドをもう一度見る ▶</button>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-11h2v6h-2v-6zm0-3h2v2h-2V6z"/></svg>このアプリについて</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <p>Disco Swipe は、ジャンルを越えてまだ知らない曲に出会うための音楽ディスカバリーアプリです。30秒ずつ、直感でスワイプして新しい音楽を見つけましょう。</p>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>音源・権利について</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <p>楽曲の試聴音源およびジャケット画像は Apple / iTunes が提供するプレビューを利用しています。各楽曲・画像の権利は、それぞれの権利者に帰属します。各曲の「Apple Musicで開く」から公式ページへ移動でき、Apple Music と連携すると本編をフル再生できます。</p>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 0 1 6 0v3H9z"/></svg>プライバシーポリシー</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <p>本アプリは、お気に入り・再生履歴・設定などの情報を<b>お使いの端末内（localStorage）にのみ</b>保存し、外部サーバーへ送信しません。個人を特定する情報は収集しません。</p>
+            <p class="info-note">※ 今後、広告を導入する場合は、広告配信のために端末識別子等が利用されることがあります。その際は本ポリシーを更新します。</p>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 12h8v2H8v-2zm0 4h8v2H8v-2z"/></svg>利用規約</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <ul>
+              <li>本アプリは「現状有姿」で提供され、動作・内容について保証するものではありません。</li>
+              <li>本アプリは楽曲の試聴・発見を目的としています。</li>
+              <li>本アプリの利用によって生じたいかなる損害についても、開発者は責任を負いません。</li>
+              <li>楽曲・画像等の権利は各権利者に帰属します。権利者からの要請により内容を変更・削除する場合があります。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-head" type="button"><span class="acc-label"><svg class="acc-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>お問い合わせ</span><span class="acc-arrow">▾</span></button>
+          <div class="acc-body">
+            <p>ご意見・不具合のご連絡は下記までお願いします。<br>
+            <a class="info-link" href="mailto:discoswipe@gmail.com">discoswipe@gmail.com</a></p>
+          </div>
+        </div>
+
+        <p class="info-foot">Disco Swipe v1.0</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=61"></script>
 </body>
 </html>

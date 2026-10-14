@@ -4,14 +4,19 @@
    ============================================================ */
 
 :root{
-  --bg:#0b0b10;
-  --fg:#f3f3f7;
-  --muted:#a9a9b8;
-  --like:#21d07a;     /* 右スワイプ:キープ */
-  --nope:#ff476f;     /* 左スワイプ:スキップ */
-  --up:#ff9d2e;       /* 上スワイプ:プレイリスト */
-  --accent:#b06bff;
-  --accent2:#ff5fa2;
+  --bg:#07070d;
+  --fg:#f6f5fa;
+  --muted:#9d9cb0;
+  --like:#2ee59a;     /* いいね */
+  --nope:#ff476f;
+  --up:#ff9d2e;
+  /* アクセントは1色だけ。UIクロームは無彩色に引き、色はジャケットに任せる */
+  --accent:#ffffff;              /* 主役の操作＝白 */
+  --accent2:#fa2d48;             /* Apple Music レッド */
+  --accent3:#fa2d48;
+  --glass:rgba(255,255,255,.07);
+  --glass-hi:rgba(255,255,255,.14);
+  --glass-border:rgba(255,255,255,.10);
   --disc-size: min(76vw, 360px);
   --ease: cubic-bezier(.22,.61,.36,1);
   /* iOSのセーフエリア */
@@ -55,7 +60,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 .bg{
   position:fixed; inset:-12%;
   background-size:cover; background-position:center;
-  filter:blur(42px) saturate(1.4) brightness(.55);
+  filter:blur(56px) saturate(1.9) brightness(.62);
   transform:scale(1.15) translateZ(0);
   transition:background-image .5s ease, opacity .6s ease;
   opacity:.9;
@@ -63,9 +68,10 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 }
 .bg-shade{
   position:fixed; inset:0;
+  /* 色は足さない。ジャケットの色だけを残し、下へ向かって黒く沈める */
   background:
-    radial-gradient(120% 80% at 50% 18%, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 70%, rgba(0,0,0,.85) 100%),
-    linear-gradient(180deg, rgba(11,11,16,.25) 0%, rgba(11,11,16,.65) 60%, rgba(11,11,16,.92) 100%);
+    radial-gradient(120% 70% at 50% 26%, rgba(0,0,0,0) 0%, rgba(0,0,0,.30) 58%, rgba(0,0,0,.68) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.14) 0%, rgba(0,0,0,.52) 58%, rgba(0,0,0,.90) 100%);
   z-index:0;
 }
 
@@ -92,11 +98,22 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   justify-content:space-between;
   flex:0 0 auto;
 }
-.brand{ display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.14em; font-size:15px; }
+.brand{ display:flex; align-items:center; gap:7px; font-weight:800; letter-spacing:.12em; font-size:14px;
+  color:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  margin:0; padding:7px 10px 7px 11px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border-radius:999px;
+  box-shadow:0 1px 6px rgba(0,0,0,.25);
+}
+.brand:active{ transform:scale(.96); background:rgba(255,255,255,.14); }
+.brand-caret{ color:var(--muted); margin-left:1px; flex:0 0 auto; }
 .brand-dot{
   width:11px; height:11px; border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, #fff 0 12%, var(--accent2) 13%, var(--accent) 80%);
-  box-shadow:0 0 14px var(--accent);
+  background:radial-gradient(circle at 34% 30%, #fff 0 20%, #9a9aa8 21%, #24242c 85%);
+  box-shadow:none;
 }
 .brand-thin{ font-weight:400; opacity:.7; margin-left:2px; }
 
@@ -105,16 +122,19 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   display:flex; align-items:center; gap:5px;
   font-size:12px; font-weight:700; color:var(--muted);
   padding:7px 11px; border-radius:999px;
-  background:rgba(255,255,255,.08);
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
   white-space:nowrap;
   transition:transform .12s ease, background .2s ease, color .2s ease;
 }
 .skip-toggle svg{ width:15px; height:15px; }
 .skip-toggle:active{ transform:scale(.94); }
 .skip-toggle.on{
-  color:#fff;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  box-shadow:0 4px 12px rgba(176,107,255,.4);
+  color:#0b0b10;
+  background:#fff;
+  border-color:#fff;
 }
 
 .lib-btn{
@@ -122,9 +142,10 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   width:42px; height:42px; border-radius:50%;
   display:grid; place-items:center;
   color:var(--fg);
-  background:rgba(255,255,255,.08);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
 }
 .lib-btn:active{ transform:scale(.92); }
 .lib-count{
@@ -152,19 +173,21 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 .genres::-webkit-scrollbar{ display:none; }
 .chip{
   flex:0 0 auto;
-  font-size:13px; font-weight:700; letter-spacing:.02em;
+  font-size:13px; font-weight:600; letter-spacing:.01em;
   color:var(--muted);
-  padding:8px 15px;
-  border-radius:999px;
-  background:rgba(255,255,255,.08);
+  padding:7px 14px;
+  border-radius:8px;                      /* ピル一辺倒をやめ、角を締める */
+  background:transparent;
+  border:1px solid var(--glass-border);
   white-space:nowrap;
-  transition:transform .12s ease, background .2s ease, color .2s ease;
+  transition:transform .12s ease, background .2s ease, color .2s ease, border-color .2s ease;
 }
-.chip:active{ transform:scale(.94); }
+.chip:active{ transform:scale(.96); }
 .chip.is-active{
-  color:#fff;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  box-shadow:0 6px 16px rgba(176,107,255,.4);
+  color:#0b0b10;
+  font-weight:700;
+  border-color:#fff;
+  background:#fff;                        /* 選択＝白ベタ。色に頼らず一番強い */
 }
 
 /* ---------- ステージ ---------- */
@@ -210,10 +233,11 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
       #0a0a0a 0 1px, #161616 1px 2.4px, #0d0d0d 2.4px 3.6px),
     radial-gradient(circle at 50% 50%, #1c1c1c 0 30%, #000 78%, #050505 100%);
   box-shadow:
-    0 26px 60px rgba(0,0,0,.6),
-    0 4px 14px rgba(0,0,0,.5),
+    0 34px 80px rgba(0,0,0,.72),
+    0 6px 18px rgba(0,0,0,.55),
     inset 0 0 50px rgba(0,0,0,.85),
-    inset 0 0 0 2px rgba(255,255,255,.04);
+    inset 0 0 0 2px rgba(255,255,255,.05),
+    inset 0 2px 3px rgba(255,255,255,.08);
   /* 回転は JS(requestAnimationFrame)で transform:rotate を更新。
      こうすることで自動回転と「手回しスクラッチ」が同じ角度(discAngle)を共有でき、
      手回し→再生復帰でも回転位置が飛ばない。 */
@@ -273,14 +297,13 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 .ring-bg{ fill:none; stroke:rgba(255,255,255,.12); stroke-width:1.4; }
 .ring-fg{
   fill:none;
-  stroke:url(#ringGrad);
   stroke:var(--accent2);
-  stroke-width:1.8;
+  stroke-width:2.2;
   stroke-linecap:round;
   /* 2πr (r=48) ≒ 301.59 */
   stroke-dasharray:301.59;
   stroke-dashoffset:301.59;
-  filter:drop-shadow(0 0 4px rgba(255,95,162,.7));
+  filter:drop-shadow(0 0 6px rgba(240,68,126,.75));
   /* 進捗は rAF で毎フレーム更新するので transition は付けない(カクつき防止) */
 }
 
@@ -365,38 +388,41 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 .track-info{
   flex:0 0 auto;
   width:100%; max-width:520px;
-  text-align:center;
-  padding:6px 8px 2px;
-  min-height:74px;
+  text-align:left;
+  padding:4px 4px 0;
 }
 .track-name{
-  font-size:20px; font-weight:800; line-height:1.25;
-  margin-bottom:4px;
+  font-size:21px; font-weight:700; line-height:1.24; letter-spacing:-.022em;
+  margin-bottom:2px;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  text-shadow:0 2px 10px rgba(0,0,0,.6);
+  text-shadow:0 2px 14px rgba(0,0,0,.65);
 }
-.track-artist{ font-size:15px; color:#dcdce6; }
+.track-artist{
+  font-size:19px; font-weight:400; letter-spacing:-.015em;
+  color:var(--accent2);                     /* Apple Music: アーティスト名はアクセント色 */
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .track-actions{
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  margin-top:8px;
+  display:flex; align-items:center; justify-content:center; gap:14px;
+  margin-top:10px;
 }
 .track-genre{
   display:inline-block;
-  font-size:11px; font-weight:700; letter-spacing:.08em;
-  color:#fff;
-  padding:4px 10px; border-radius:999px;
-  background:rgba(255,255,255,.12);
+  font-size:11px; font-weight:500; letter-spacing:.06em;
+  color:rgba(255,255,255,.5);
+  padding:0;
+  background:none;
 }
-/* Apple Musicで開く（誘導導線） */
+/* Apple Musicで開く（誘導導線）— ベタ塗りをやめ、テキストリンク寄りに */
 .apple-open{
   display:inline-flex; align-items:center; gap:4px;
-  font-size:11px; font-weight:700; letter-spacing:.04em;
-  color:#fff; text-decoration:none; white-space:nowrap;
-  padding:4px 12px; border-radius:999px;
-  background:linear-gradient(135deg,#fa2d48,#fb5c74);
-  box-shadow:0 2px 8px rgba(250,45,72,.35);
+  font-size:11px; font-weight:600; letter-spacing:.04em;
+  color:rgba(255,255,255,.72); text-decoration:none; white-space:nowrap;
+  padding:0;
+  background:none;
+  border-bottom:1px solid rgba(255,255,255,.25);
 }
-.apple-open:active{ filter:brightness(.92); }
+.apple-open:active{ color:#fff; }
 .apple-open.hidden{ display:none; }
 .lyrics-btn{
   font-size:11px; font-weight:700; letter-spacing:.06em;
@@ -418,11 +444,170 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   padding:4px 2px 8px;
 }
 .lyrics-body.loading{ color:var(--muted); }
+
+/* ---------- 初回チュートリアル（モーション付きガイド） ---------- */
+.tutorial{
+  position:fixed; inset:0; z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  background:rgba(8,8,12,.88); backdrop-filter:blur(8px);
+}
+.tutorial.hidden{ display:none; }
+.tutorial-inner{
+  width:100%; max-width:340px; text-align:center;
+}
+/* デモ舞台: ミニカードと手のモーション */
+.tut-stage{
+  position:relative;
+  height:210px; margin:0 auto 20px;
+  display:flex; align-items:center; justify-content:center;
+}
+.tut-card{
+  width:130px; height:130px; border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%, #101014 0 24%, #1c1c24 25% 27%, #101014 28% 100%);
+  border:6px solid #26262f;
+  box-shadow:0 14px 40px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.05);
+}
+.tut-hand{
+  position:absolute; left:50%; top:58%;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 0 0 9px rgba(255,255,255,.18), 0 4px 14px rgba(0,0,0,.5);
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.tut-heart{
+  position:absolute; left:50%; top:42%;
+  font-size:54px; color:var(--like);
+  transform:translate(-50%,-50%) scale(0);
+  opacity:0; pointer-events:none;
+  text-shadow:0 6px 20px rgba(33,208,122,.55);
+}
+/* ステップごとのモーション(カードと手が一緒に動く) */
+.tut-anim-up .tut-hand{ animation:tutUp 1.6s ease-in-out infinite; }
+.tut-anim-up .tut-card{ animation:tutCardUp 1.6s ease-in-out infinite; }
+@keyframes tutUp{
+  0%,15%{ transform:translate(-50%,-50%); opacity:1; }
+  60%{ transform:translate(-50%,-160%); opacity:1; }
+  75%,100%{ transform:translate(-50%,-170%); opacity:0; }
+}
+@keyframes tutCardUp{
+  0%,15%{ transform:translateY(0); }
+  60%{ transform:translateY(-42px); }
+  75%{ transform:translateY(-46px); opacity:.6; }
+  76%{ transform:translateY(0); opacity:0; }
+  90%,100%{ transform:translateY(0); opacity:1; }
+}
+.tut-anim-down .tut-hand{ animation:tutDown 1.6s ease-in-out infinite; }
+.tut-anim-down .tut-card{ animation:tutCardDown 1.6s ease-in-out infinite; }
+@keyframes tutDown{
+  0%,15%{ transform:translate(-50%,-50%); opacity:1; }
+  60%{ transform:translate(-50%,60%); opacity:1; }
+  75%,100%{ transform:translate(-50%,70%); opacity:0; }
+}
+@keyframes tutCardDown{
+  0%,15%{ transform:translateY(0); }
+  60%{ transform:translateY(42px); }
+  75%{ transform:translateY(46px); opacity:.6; }
+  76%{ transform:translateY(0); opacity:0; }
+  90%,100%{ transform:translateY(0); opacity:1; }
+}
+.tut-anim-side .tut-hand{ animation:tutSide 1.8s ease-in-out infinite; }
+.tut-anim-side .tut-card{ animation:tutCardSide 1.8s ease-in-out infinite; }
+.tut-anim-side .tut-heart{ animation:tutHeartPop 1.8s ease-in-out infinite; }
+@keyframes tutSide{
+  0%,12%{ transform:translate(-50%,-50%); opacity:1; }
+  45%{ transform:translate(40%,-50%); opacity:1; }
+  60%,100%{ transform:translate(50%,-50%); opacity:0; }
+}
+@keyframes tutCardSide{
+  0%,12%{ transform:translateX(0) rotate(0); }
+  45%{ transform:translateX(34px) rotate(8deg); }
+  60%{ transform:translateX(0) rotate(0); }
+}
+@keyframes tutHeartPop{
+  0%,45%{ transform:translate(-50%,-50%) scale(0); opacity:0; }
+  60%{ transform:translate(-50%,-80%) scale(1.15); opacity:1; }
+  80%{ transform:translate(-50%,-110%) scale(1); opacity:1; }
+  100%{ transform:translate(-50%,-140%) scale(.9); opacity:0; }
+}
+.tut-anim-tap .tut-hand{ animation:tutTap 1.4s ease-in-out infinite; }
+@keyframes tutTap{
+  0%,20%{ transform:translate(-50%,-50%) scale(1); }
+  35%{ transform:translate(-50%,-50%) scale(.78); }
+  50%{ transform:translate(-50%,-50%) scale(1); }
+  62%{ transform:translate(-50%,-50%) scale(.78); }
+  75%,100%{ transform:translate(-50%,-50%) scale(1); }
+}
+.tut-anim-hold .tut-hand{ animation:tutHold 2.2s ease-in-out infinite; }
+.tut-anim-hold .tut-card{ animation:tutCardSpin 2.2s ease-in-out infinite; }
+@keyframes tutHold{
+  0%,18%{ transform:translate(-50%,-50%) scale(1); }
+  26%{ transform:translate(-50%,-50%) scale(.82); }
+  40%{ transform:translate(-38%,-62%) scale(.82); }
+  60%{ transform:translate(-62%,-62%) scale(.82); }
+  80%{ transform:translate(-50%,-50%) scale(.82); }
+  92%,100%{ transform:translate(-50%,-50%) scale(1); }
+}
+@keyframes tutCardSpin{
+  0%,26%{ transform:rotate(0); }
+  40%{ transform:rotate(40deg); }
+  60%{ transform:rotate(-40deg); }
+  80%,100%{ transform:rotate(0); }
+}
+.tut-title{ font-size:20px; font-weight:800; margin-bottom:8px; }
+.tut-desc{ font-size:14px; line-height:1.7; color:var(--muted); min-height:44px; margin-bottom:14px; }
+.tut-dots{ display:flex; gap:7px; justify-content:center; margin-bottom:18px; }
+.tut-dot{ width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.22); transition:all .25s var(--ease); }
+.tut-dot.on{ background:var(--accent2); transform:scale(1.25); }
+.tut-btn{
+  width:100%; padding:13px; margin-top:8px;
+  border:none; border-radius:999px; cursor:pointer;
+  font-size:15px; font-weight:700; color:#fff;
+  -webkit-tap-highlight-color:transparent;
+}
+.tut-btn.primary{
+  background:#fff; color:#0b0b10;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.tut-btn.ghost{ background:none; color:var(--muted); font-weight:600; }
+.tut-btn:active{ transform:scale(.98); }
+
+/* ---------- 情報パネル（使い方・規約など / アコーディオン） ---------- */
+.info-body{
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:4px 0 12px;
+  line-height:1.75; font-size:14px; color:#e6e6ef;
+}
+.acc-item{ border-bottom:1px solid rgba(255,255,255,.1); }
+.acc-head{
+  width:100%; box-sizing:border-box;
+  display:flex; align-items:center; justify-content:space-between;
+  background:none; border:none; cursor:pointer;
+  padding:16px 2px;
+  font-size:15px; font-weight:800; color:#fff; text-align:left;
+  -webkit-tap-highlight-color:transparent;
+}
+.acc-label{ display:flex; align-items:center; gap:10px; }
+.acc-icon{ width:18px; height:18px; flex:0 0 auto; color:var(--muted); }
+.acc-arrow{ color:var(--muted); font-size:13px; transition:transform .22s var(--ease); }
+.acc-item.open .acc-arrow{ transform:rotate(180deg); }
+/* 本文は既定で閉じ、開いた項目だけ表示 */
+.acc-body{ display:none; padding:0 2px 14px; }
+.acc-item.open .acc-body{ display:block; }
+.acc-body p{ margin:0 0 10px; color:#d4d4e0; }
+.acc-body ul{ margin:0; padding-left:1.25em; }
+.acc-body li{ margin:0 0 6px; color:#d4d4e0; }
+.acc-body b{ color:#fff; font-weight:700; }
+.info-note{ font-size:12px; color:var(--muted); }
+.info-link{ color:var(--accent2); text-decoration:underline; word-break:break-all; }
+.info-foot{ margin-top:18px; font-size:12px; color:var(--muted); text-align:center; }
 .lyrics-empty{ color:var(--muted); margin-bottom:16px; }
 .lyrics-search{
-  display:inline-block; font-size:14px; font-weight:700; color:#fff;
+  display:inline-block; font-size:14px; font-weight:700; color:#0b0b10;
   padding:10px 18px; border-radius:999px;
-  background:linear-gradient(145deg,var(--accent),var(--accent2));
+  background:#fff;
 }
 
 /* ---------- 下部コントロール ---------- */
@@ -436,18 +621,21 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   display:grid; place-items:center;
   border-radius:50%;
   color:var(--fg);
-  background:rgba(255,255,255,.10);
-  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px) saturate(1.4); -webkit-backdrop-filter:blur(14px) saturate(1.4);
   transition:transform .12s ease, background .2s ease;
 }
-.ctrl:active{ transform:scale(.9); background:rgba(255,255,255,.18); }
+.ctrl:active{ transform:scale(.9); background:var(--glass-hi); }
 .ctrl-side{ width:54px; height:54px; }
 .ctrl-play{
-  width:74px; height:74px;
-  background:linear-gradient(145deg,var(--accent),var(--accent2));
-  box-shadow:0 10px 26px rgba(176,107,255,.45);
+  width:72px; height:72px;
+  border:none;
+  color:#0b0b10;                          /* アイコンは黒 */
+  background:#fff;
+  box-shadow:0 10px 30px rgba(0,0,0,.45);
 }
-.ctrl-play:active{ background:linear-gradient(145deg,var(--accent),var(--accent2)); }
+.ctrl-play:active{ background:#e9e9ef; }
 /* 再生状態に応じて再生/一時停止アイコンを切替 */
 .icon-pause{ display:none; }
 .ctrl-play.playing .icon-play{ display:none; }
@@ -455,10 +643,60 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 
 .hint{
   flex:0 0 auto;
-  margin-top:10px;
-  font-size:12px; color:var(--muted); letter-spacing:.02em; text-align:center;
+  margin-top:14px;
+  font-size:11px; letter-spacing:.10em; text-align:center;
+  color:rgba(255,255,255,.32);
 }
 .hint-sub{ margin-top:3px; font-size:11px; opacity:.8; }
+
+/* ---------- 下部バナー広告スロット ---------- */
+.ad-banner{
+  flex:0 0 auto;
+  width:100%; max-width:520px;
+  height:56px; margin-top:10px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+}
+.ad-banner-label{ font-size:11px; color:var(--muted); letter-spacing:.06em; }
+.ad-banner.hidden{ display:none; }
+
+/* ---------- 任意広告ゲート（40曲ごと） ---------- */
+.ad-gate{
+  position:fixed; inset:0; z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  background:rgba(8,8,12,.82); backdrop-filter:blur(6px);
+}
+.ad-gate.hidden{ display:none; }
+.ad-gate-inner{
+  width:100%; max-width:360px; text-align:center;
+  background:#16161e; border:1px solid rgba(255,255,255,.1);
+  border-radius:20px; padding:26px 22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.ad-gate-title{ font-size:20px; font-weight:800; margin-bottom:8px; }
+.ad-gate-sub{ font-size:13px; line-height:1.6; color:var(--muted); margin-bottom:16px; }
+.ad-gate-slot{
+  height:120px; margin-bottom:18px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px dashed rgba(255,255,255,.22); border-radius:12px;
+  background:rgba(255,255,255,.04);
+  font-size:12px; color:var(--muted); letter-spacing:.06em;
+}
+.ad-gate-btn{
+  width:100%; padding:13px; margin-top:8px;
+  border:none; border-radius:999px; cursor:pointer;
+  font-size:15px; font-weight:700; color:#fff;
+  background:rgba(255,255,255,.12);
+}
+.ad-gate-btn.primary{
+  color:#0b0b10;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.ad-gate-btn:active{ transform:scale(.98); }
 
 /* ---------- トースト ---------- */
 .toast{
@@ -499,7 +737,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
 .start-disc::after{
   content:""; position:absolute; inset:42%;
   border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, var(--accent2), var(--accent) 70%);
+  background:radial-gradient(circle at 34% 30%, #fff 0 18%, #9a9aa8 19%, #24242c 85%);
 }
 .start-title{ font-size:30px; font-weight:900; letter-spacing:.16em; margin-bottom:12px; }
 .start-sub{ color:var(--muted); font-size:14px; line-height:1.7; margin-bottom:28px; }
@@ -508,8 +746,8 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   font-size:17px; font-weight:800; letter-spacing:.04em;
   padding:16px; border-radius:16px;
   color:#fff;
-  background:linear-gradient(145deg,var(--accent),var(--accent2));
-  box-shadow:0 12px 30px rgba(176,107,255,.45);
+  background:#fff; color:#0b0b10;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
   transition:transform .12s ease;
 }
 .start-btn:active{ transform:scale(.97); }
@@ -543,7 +781,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   flex:1; padding:10px; border-radius:12px; font-size:13px; font-weight:700;
   color:var(--muted); background:rgba(255,255,255,.06);
 }
-.lib-tab.is-active{ color:#fff; background:rgba(176,107,255,.25); }
+.lib-tab.is-active{ color:#0b0b10; background:#fff; }
 .lib-tab span{ opacity:.8; }
 .lib-list{ list-style:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .lib-list li{
@@ -575,7 +813,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; border:none; backgro
   z-index:6; pointer-events:none; opacity:0; transition:opacity .12s ease, transform .12s ease;
   padding:10px 18px; border-radius:999px; font-size:22px; font-weight:800; letter-spacing:.5px;
   color:#fff; background:rgba(10,10,16,.82); border:2px solid var(--accent);
-  box-shadow:0 8px 30px rgba(176,107,255,.5);
+  box-shadow:0 8px 30px rgba(0,0,0,.45);
 }
 .speed-tag.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
 
@@ -630,3 +868,803 @@ body.lock-cw{  transform:translateX(100vw) rotate(90deg);  }   /* 端末を反�
 body.lock-ccw{ transform:translateY(100vh) rotate(-90deg); }   /* 端末を時計回りに倒した時 */
 /* 回転中はレコード等の vw 基準を vh 基準に読み替える */
 body.lock-cw,  body.lock-ccw{ --disc-size:min(76vh, 360px); }
+
+/* ============================================================
+   LIGHT THEME — body.light を付けると白基調に切替
+   (設定メニューの「テーマ」から切替。未指定時はダーク=ネオン)
+   ============================================================ */
+body.light{
+  --bg:#f5f4fa;
+  --fg:#17161f;
+  --muted:#6e6d80;
+  --glass:rgba(255,255,255,.72);
+  --glass-hi:rgba(255,255,255,.9);
+  --glass-border:rgba(20,18,40,.10);
+  background:var(--bg);
+  color:var(--fg);
+}
+
+/* 背景: ジャケットは明るく淡く、白いワッシュ+パステルの光 */
+body.light .bg{ filter:blur(46px) saturate(1.25) brightness(1.05); opacity:.5; }
+body.light .bg-shade{
+  background:
+    linear-gradient(180deg, rgba(245,244,250,.72) 0%, rgba(245,244,250,.82) 55%, rgba(240,238,248,.95) 100%);
+}
+
+/* テキスト */
+body.light .track-name{ text-shadow:0 1px 2px rgba(255,255,255,.6); }
+body.light .track-artist{ color:var(--accent2); }
+body.light .track-genre{ background:none; }
+
+/* ガラス面(白) */
+body.light .chip{ box-shadow:0 2px 10px rgba(30,25,60,.06); }
+body.light .chip.is-active{ color:#fff; }
+body.light .brand{ box-shadow:0 2px 10px rgba(30,25,60,.08); }
+body.light .skip-toggle.on{ color:#fff; }
+body.light .lib-btn{ color:var(--fg); box-shadow:0 2px 10px rgba(30,25,60,.08); }
+
+/* レコード: 白背景に映える柔らかい影(ネオングロー弱め) */
+body.light .disc{
+  box-shadow:
+    0 26px 60px rgba(30,25,60,.28),
+    0 6px 18px rgba(30,25,60,.18),
+    inset 0 0 50px rgba(0,0,0,.85),
+    inset 0 0 0 2px rgba(255,255,255,.05),
+    inset 0 2px 3px rgba(255,255,255,.08);
+}
+body.light .ring-bg{ stroke:rgba(20,18,40,.12); }
+
+/* コントロール */
+body.light .ctrl{ color:var(--fg); box-shadow:0 4px 14px rgba(30,25,60,.10); }
+body.light .ctrl:active{ background:var(--glass-hi); }
+body.light .ctrl-play{ color:#fff; }
+
+/* 広告バナー枠 */
+body.light .ad-banner{ border-color:rgba(20,18,40,.18); background:rgba(20,18,40,.03); }
+
+/* スタート画面 */
+body.light .start-overlay{ background:radial-gradient(120% 100% at 50% 0%, #efeaf7 0%, #f5f4fa 60%); }
+
+/* シート(ライブラリ/メニュー): 白 */
+body.light .library{ background:rgba(25,20,45,.30); }
+body.light .library-sheet{ background:#ffffff; box-shadow:0 -12px 44px rgba(30,25,60,.22); }
+body.light .library-close{ background:rgba(20,18,40,.07); }
+body.light .lib-tab{ background:rgba(20,18,40,.05); }
+body.light .lib-tab.is-active{ color:#fff; background:#17161f; }
+body.light .lib-list li{ border-bottom-color:rgba(20,18,40,.08); }
+
+/* 情報パネル(アコーディオン) */
+body.light .info-body{ color:#2e2d3a; }
+body.light .acc-item{ border-bottom-color:rgba(20,18,40,.10); }
+body.light .acc-head{ color:var(--fg); }
+body.light .acc-body p, body.light .acc-body li{ color:#4a4958; }
+body.light .acc-body b{ color:#17161f; }
+
+/* テーマ切替UI(両テーマ共通) */
+.theme-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 2px; border-bottom:1px solid rgba(255,255,255,.1);
+}
+body.light .theme-row{ border-bottom-color:rgba(20,18,40,.10); }
+.theme-label{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:800; }
+.theme-seg{
+  display:flex; gap:4px; padding:3px;
+  border-radius:999px; background:rgba(255,255,255,.08);
+}
+body.light .theme-seg{ background:rgba(20,18,40,.07); }
+.theme-btn{
+  font-size:12px; font-weight:700; color:var(--muted);
+  padding:7px 14px; border-radius:999px;
+  transition:background .2s ease, color .2s ease;
+}
+.theme-btn.on{
+  color:#fff;
+  background:#fff; color:#0b0b10;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+}
+
+/* ---- ライトテーマ: 「白＝強調」を反転して「黒＝強調」にする ---- */
+body.light .chip.is-active{ color:#fff; background:#17161f; border-color:#17161f; }
+body.light .skip-toggle.on{ color:#fff; background:#17161f; border-color:#17161f; }
+body.light .ctrl-play{ color:#fff; background:#17161f; box-shadow:0 10px 28px rgba(30,25,60,.28); }
+body.light .ctrl-play:active{ background:#2c2a38; }
+body.light .start-btn{ color:#fff; background:#17161f; box-shadow:0 12px 30px rgba(30,25,60,.28); }
+body.light .theme-btn.on{ color:#fff; background:#17161f; box-shadow:0 2px 8px rgba(30,25,60,.25); }
+body.light .brand-dot{ background:radial-gradient(circle at 34% 30%, #fff 0 18%, #6e6d80 19%, #17161f 85%); }
+body.light .track-artist{ color:var(--accent2); }
+body.light .track-genre{ color:rgba(23,22,31,.5); }
+body.light .apple-open{ color:rgba(23,22,31,.75); border-bottom-color:rgba(23,22,31,.28); }
+body.light .apple-open:active{ color:#17161f; }
+body.light .hint{ color:rgba(23,22,31,.38); }
+
+/* ============================================================
+   APPLE MUSIC 風レイアウト
+   ============================================================ */
+/* 曲名行: 左にタイトル/アーティスト、右に Apple Music アイコン */
+.track-head{ display:flex; align-items:flex-start; gap:12px; }
+.track-titles{ flex:1; min-width:0; }
+.track-name{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.apple-open{
+  flex:0 0 auto; margin-top:4px;
+  display:grid; place-items:center;
+  width:30px; height:30px; border-radius:50%;
+  color:rgba(255,255,255,.55);
+  background:rgba(255,255,255,.10);
+  border:none;
+}
+.apple-open:active{ color:#fff; background:rgba(255,255,255,.2); }
+
+/* シークバー(細い水平バー + 経過/残り時間) */
+.seek{ margin-top:14px; }
+.seek-track{
+  position:relative; height:4px; border-radius:2px;
+  background:rgba(255,255,255,.18);
+  overflow:hidden;
+}
+.seek-fill{
+  position:absolute; left:0; top:0; bottom:0; width:0%;
+  background:rgba(255,255,255,.75);
+  border-radius:2px;
+}
+.seek-times{
+  display:flex; justify-content:space-between;
+  margin-top:6px;
+  font-size:11px; font-weight:500; font-variant-numeric:tabular-nums;
+  color:rgba(255,255,255,.42);
+}
+.track-genre{ display:block; margin-top:10px; }
+
+/* コントロール: 円の背景をやめ、グリフだけを並べる(Apple Music の Now Playing) */
+.controls{ gap:46px; margin-top:16px; }
+.ctrl{
+  background:none !important;
+  border:none !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  box-shadow:none !important;
+  color:#fff;
+  width:auto !important; height:auto !important;
+}
+.ctrl:active{ background:none !important; opacity:.55; transform:scale(.94); }
+.ctrl svg{ width:32px; height:32px; }
+.ctrl-play svg{ width:44px; height:44px; }
+
+/* ライトテーマ対応 */
+body.light .apple-open{ color:rgba(23,22,31,.55); background:rgba(23,22,31,.08); }
+body.light .apple-open:active{ color:#17161f; background:rgba(23,22,31,.16); }
+body.light .seek-track{ background:rgba(23,22,31,.16); }
+body.light .seek-fill{ background:rgba(23,22,31,.75); }
+body.light .seek-times{ color:rgba(23,22,31,.42); }
+body.light .ctrl{ color:#17161f; }
+body.light .ctrl-play{ color:#17161f; background:none !important; box-shadow:none !important; }
+body.light .ctrl-play:active{ background:none !important; }
+
+/* リングは廃止(水平シークバーに一本化)。CSSで確実に非表示にする */
+.ring{ display:none !important; }
+
+/* ジャンルはタイトル上のオーバーラインに(Apple Music的な情報階層) */
+.track-genre{
+  display:block; margin:0 0 6px;
+  font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(255,255,255,.38);
+}
+body.light .track-genre{ color:rgba(23,22,31,.40); }
+
+/* ============================================================
+   LUXURY LIGHT — ウォームクリーム基調 / タンのアクセント /
+   セリフ見出し / 柔らかい影（参照デザイン準拠）
+   ※ body.light に適用。最後に置いて最優先で効かせる
+   ============================================================ */
+body.light{
+  --bg:#f3ede5;                 /* ウォームクリーム */
+  --fg:#332c26;                 /* 温かみのあるダークブラウン */
+  --muted:#9d9186;
+  --accent2:#c08d5b;            /* タン/キャメル */
+  --card:#fffdfa;
+  --soft:0 10px 30px rgba(120,96,70,.10), 0 2px 8px rgba(120,96,70,.06);
+  --soft-sm:0 4px 14px rgba(120,96,70,.10);
+  background:var(--bg); color:var(--fg);
+}
+
+/* 背景: ジャケットをごく淡く、クリームのグラデーションで包む */
+body.light .bg{ filter:blur(64px) saturate(1.15) brightness(1.18); opacity:.34; }
+body.light .bg-shade{
+  background:
+    linear-gradient(180deg, rgba(249,245,239,.80) 0%, rgba(243,237,229,.88) 55%, rgba(238,230,220,.96) 100%);
+}
+
+/* トップのボタン類: 白いソフトカード */
+body.light .brand,
+body.light .skip-toggle,
+body.light .lib-btn{
+  background:var(--card);
+  border:none;
+  box-shadow:var(--soft-sm);
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+body.light .brand{ color:var(--fg); }
+body.light .brand-caret{ color:var(--muted); }
+body.light .skip-toggle{ color:var(--muted); }
+body.light .skip-toggle.on{ color:#fff; background:var(--accent2); box-shadow:var(--soft-sm); }
+body.light .lib-btn{ color:var(--fg); }
+body.light .lib-count{ background:var(--accent2); color:#fff; }
+
+/* ジャンルチップ: 白いソフトカード / 選択=タン */
+body.light .chip{
+  background:var(--card); border:none; border-radius:14px;
+  color:var(--muted); box-shadow:var(--soft-sm);
+}
+body.light .chip.is-active{
+  background:var(--accent2); border:none; color:#fff;
+  box-shadow:0 6px 18px rgba(192,141,91,.35);
+}
+
+/* レコード: クリームに浮かぶ柔らかい影 */
+body.light .disc{
+  box-shadow:
+    0 30px 60px rgba(120,96,70,.28),
+    0 8px 20px rgba(120,96,70,.16),
+    inset 0 0 50px rgba(0,0,0,.8),
+    inset 0 0 0 2px rgba(255,255,255,.06);
+}
+
+/* 見出しはセリフ(明朝)で上品に */
+body.light .track-name{
+  font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,"Times New Roman",serif;
+  font-weight:600; letter-spacing:.01em; font-size:23px;
+  color:var(--fg); text-shadow:none;
+}
+body.light .track-artist{ color:var(--accent2); font-weight:500; font-size:16px; }
+body.light .track-genre{ color:var(--muted); }
+
+/* シークバー */
+body.light .seek-track{ background:rgba(120,96,70,.16); }
+body.light .seek-fill{ background:var(--accent2); }
+body.light .seek-times{ color:var(--muted); }
+
+/* Apple Musicアイコン */
+body.light .apple-open{ background:var(--card); color:var(--accent2); box-shadow:var(--soft-sm); }
+
+/* コントロール: 白い丸ボタン / 再生=タンの丸 */
+body.light .ctrl{
+  width:54px !important; height:54px !important;
+  border-radius:50% !important;
+  background:var(--card) !important;
+  box-shadow:var(--soft-sm) !important;
+  color:var(--fg) !important;
+}
+body.light .ctrl svg{ width:24px; height:24px; }
+body.light .ctrl:active{ background:#f7f1ea !important; }
+body.light .ctrl-play{
+  width:70px !important; height:70px !important;
+  background:var(--accent2) !important;
+  color:#fff !important;
+  box-shadow:0 12px 28px rgba(192,141,91,.42) !important;
+}
+body.light .ctrl-play svg{ width:30px; height:30px; }
+body.light .ctrl-play:active{ background:#b07f4e !important; }
+body.light .controls{ gap:22px; }
+
+body.light .hint{ color:rgba(51,44,38,.35); }
+
+/* シート類: クリームの大きな角丸 */
+body.light .library-sheet{
+  background:var(--card);
+  border-radius:28px 28px 0 0;
+  box-shadow:0 -14px 50px rgba(120,96,70,.22);
+}
+body.light .library-close{ background:rgba(120,96,70,.08); color:var(--fg); }
+body.light .library-head h2{ font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif; font-weight:600; }
+body.light .lib-tab{ background:rgba(120,96,70,.07); color:var(--muted); border-radius:14px; }
+body.light .lib-tab.is-active{ background:var(--accent2); color:#fff; }
+body.light .lib-list li{ border-bottom-color:rgba(120,96,70,.12); }
+body.light .lib-open{ background:var(--accent2); }
+body.light .theme-btn.on{ background:var(--accent2); color:#fff; box-shadow:var(--soft-sm); }
+body.light .theme-seg{ background:rgba(120,96,70,.08); }
+body.light .acc-item{ border-bottom-color:rgba(120,96,70,.12); }
+body.light .acc-icon{ color:var(--accent2); }
+body.light .start-overlay{ background:linear-gradient(180deg,#f9f5ef 0%, #efe7dd 100%); }
+body.light .start-btn{ background:var(--accent2); color:#fff; box-shadow:0 12px 30px rgba(192,141,91,.4); }
+body.light .start-title{ font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif; font-weight:600; letter-spacing:.1em; }
+body.light .ad-banner{ border:none; background:var(--card); box-shadow:var(--soft-sm); border-radius:16px; }
+
+/* ライト時: モーダル類もウォークリームに揃える */
+body.light .tut-btn.primary,
+body.light .ad-gate-btn.primary{ background:var(--accent2); color:#fff; box-shadow:0 8px 22px rgba(192,141,91,.38); }
+body.light .tutorial{ background:rgba(243,237,229,.90); }
+body.light .tutorial-inner{ color:var(--fg); }
+body.light .tut-title{ font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif; font-weight:600; color:var(--fg); }
+body.light .tut-desc{ color:var(--muted); }
+body.light .tut-card{
+  background:radial-gradient(circle at 50% 50%, #17130f 0 24%, #2a231c 25% 27%, #17130f 28% 100%);
+  border-color:#e7ded2;
+  box-shadow:0 14px 34px rgba(120,96,70,.22);
+}
+body.light .tut-hand{ background:var(--accent2); box-shadow:0 0 0 9px rgba(192,141,91,.22), 0 4px 14px rgba(120,96,70,.25); }
+body.light .tut-heart{ color:var(--accent2); text-shadow:0 6px 20px rgba(192,141,91,.45); }
+body.light .tut-dot{ background:rgba(120,96,70,.22); }
+body.light .tut-dot.on{ background:var(--accent2); }
+body.light .tut-btn.ghost{ color:var(--muted); }
+body.light .ad-gate{ background:rgba(243,237,229,.90); }
+body.light .ad-gate-inner{ background:var(--card); border:none; box-shadow:0 20px 50px rgba(120,96,70,.2); color:var(--fg); }
+body.light .ad-gate-title{ font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif; font-weight:600; }
+body.light .ad-gate-sub{ color:var(--muted); }
+body.light .ad-gate-slot{ border-color:rgba(120,96,70,.25); background:rgba(120,96,70,.04); color:var(--muted); }
+body.light .toast{ background:rgba(51,44,38,.92); color:#fff; border-color:transparent; }
+
+/* Discovery and saved listening: readable controls and a rotating record label. */
+.artwork-cover{ inset:29%; border-radius:50%; pointer-events:none; box-shadow:0 0 0 3px rgba(0,0,0,.55); }
+.track-head{ align-items:center; gap:8px; }
+.track-like, .apple-open{ width:44px; height:44px; flex:0 0 44px; display:grid; place-items:center; margin:0; }
+.track-like{ border-radius:50%; background:rgba(255,255,255,.10); color:var(--fg); }
+.track-like svg{ fill:none; stroke:currentColor; stroke-width:1.7; }
+.track-like.is-liked{ color:#ff6480; }
+.track-like.is-liked svg{ fill:currentColor; }
+.track-like:active{ transform:scale(.92); }
+.track-name{ white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.lib-btn{ min-width:44px; min-height:44px; }
+.lib-track-play{ display:flex; align-items:center; gap:12px; flex:1; min-width:0; text-align:left; padding:4px 0; }
+.lib-track-play .lib-meta{ min-width:0; }
+.lib-track-play:disabled{ opacity:.5; cursor:default; }
+.lib-play-glyph{ flex:none; font-size:14px; }
+.lib-open{ width:44px; height:44px; padding:0; display:grid; place-items:center; font-size:20px; background:rgba(255,255,255,.10); color:var(--fg); text-decoration:none; }
+.lib-del{ width:44px; height:44px; }
+.fav-actions{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.fav-actions p{ color:var(--muted); font-size:12px; line-height:1.6; }
+.fav-play-all{ flex:none; border-radius:12px; padding:13px 16px; background:#fff; color:#17161f; font-weight:600; }
+.fav-play-all:disabled{ opacity:.45; cursor:default; }
+.return-discovery{ color:var(--fg); text-decoration:underline; text-underline-offset:4px; min-height:40px; margin-top:8px; font-size:13px; }
+.fav-actions.hidden, .return-discovery.hidden{ display:none; }
+.seek-times, .hint, .track-genre{ color:#c0bdc6; }
+:focus-visible{ outline:2px solid var(--fg); outline-offset:4px; }
+body.light{ --muted:#6d6055; }
+body.light .track-artist{ color:#80552f; }
+body.light .hint, body.light .seek-times, body.light .track-genre{ color:#6d6055; }
+body.light .track-like{ background:var(--card); box-shadow:var(--soft-sm); color:#6d6055; }
+body.light .track-like.is-liked{ color:#a33b50; }
+body.light .apple-open{ color:#80552f; }
+body.light .lib-open{ background:#f1e9df; color:#704b2e; }
+body.light .fav-play-all{ background:#80552f; color:white; }
+body.light .lib-play-glyph{ color:#80552f; }
+body.light .chip.is-active, body.light .skip-toggle.on, body.light .lib-tab.is-active,
+body.light .theme-btn.on, body.light .start-btn, body.light .tut-btn.primary{ background:#80552f; color:white; }
+body.light .lib-count{ background:#80552f; }
+body.light .ctrl-play{ background:#80552f !important; }
+.library-sheet{ max-width:640px; margin-inline:auto; }
+@media(max-width:380px){
+  .topbar-actions{ gap:6px; }
+  .brand{ font-size:12px; gap:4px; padding-inline:8px; }
+  .skip-toggle{ font-size:10px; padding-inline:8px; }
+  .lib-list li{ gap:6px; }
+  .lib-track-play{ gap:8px; }
+  .fav-actions{ align-items:flex-start; }
+}
+@media(max-height:740px){
+  :root{ --disc-size:min(66vw, 34dvh, 320px); }
+  .controls{ margin-top:10px; }
+}
+
+/* Quiet cream: flat navigation and a single dark playback control. */
+body.light{ --soft-sm:none; --soft:none; }
+body.light .topbar{ padding-top:4px; }
+body.light .brand{
+  min-height:40px; border:1px solid rgba(51,44,38,.16); border-radius:10px;
+  background:rgba(255,253,250,.38); box-shadow:none;
+  padding:8px 10px; letter-spacing:.09em;
+}
+body.light .brand:active{ background:rgba(51,44,38,.07); }
+body.light .topbar-actions{ gap:10px; }
+body.light .skip-toggle{
+  min-height:44px; padding:8px 5px; background:transparent; border:0;
+  border-radius:8px; box-shadow:none; font-size:11px; font-weight:500;
+}
+body.light .skip-toggle.on{ background:rgba(51,44,38,.08); color:var(--fg); }
+body.light .lib-btn{ background:transparent; box-shadow:none; border-radius:10px; }
+body.light .lib-count{
+  top:0; right:-1px; background:#e6ddd1; color:#514437;
+  min-width:16px; height:16px; line-height:16px; font-size:10px;
+}
+body.light .genres{
+  gap:18px; margin-top:15px; padding:0 2px;
+  border-bottom:1px solid rgba(51,44,38,.12);
+}
+body.light .chip{
+  position:relative; min-height:44px; padding:11px 2px;
+  border:0; border-radius:0; background:transparent; box-shadow:none;
+  color:#71675f; font-size:12px; font-weight:500;
+}
+body.light .chip.is-active{ color:var(--fg); background:transparent; box-shadow:none; font-weight:700; }
+body.light .chip.is-active::after{
+  content:""; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:#54483c; border-radius:1px;
+}
+body.light .disc{
+  box-shadow:0 18px 32px rgba(62,47,33,.20),0 4px 10px rgba(62,47,33,.12),
+    inset 0 0 50px rgba(0,0,0,.8),inset 0 0 0 2px rgba(255,255,255,.06);
+}
+body.light .track-like, body.light .apple-open{
+  background:transparent; box-shadow:none; color:#6d6055;
+}
+body.light .track-like.is-liked{ color:#a33b50; }
+body.light .track-like:active, body.light .apple-open:active{ background:rgba(51,44,38,.06); }
+body.light .track-artist{ color:#6d6055; }
+body.light .seek-fill{ background:#86715c; }
+body.light .ctrl{
+  background:transparent !important; box-shadow:none !important;
+  width:54px !important; height:54px !important;
+}
+body.light .ctrl:active{ background:rgba(51,44,38,.06) !important; }
+body.light .ctrl-play{
+  width:66px !important; height:66px !important;
+  background:#332f2b !important; color:#fff !important; box-shadow:none !important;
+}
+body.light .ctrl-play:active{ background:#4b433c !important; }
+body.light .controls{ gap:30px; }
+body.light .lib-tab{ background:transparent; border-radius:8px; }
+body.light .lib-tab.is-active{ background:#ebe4db; color:#332c26; }
+body.light .theme-btn.on{ background:#332f2b; box-shadow:none; }
+body.light .fav-play-all, body.light .start-btn, body.light .tut-btn.primary{
+  background:#332f2b; color:white; box-shadow:none;
+}
+body.light .lib-open{ background:transparent; color:#6d6055; }
+@media(max-width:380px){
+  body.light .topbar-actions{ gap:4px; }
+  body.light .brand{ padding-inline:8px; font-size:12px; }
+  body.light .skip-toggle{ font-size:10px; padding-inline:4px; }
+  body.light .genres{ gap:16px; }
+}
+
+/* Unified typography and neutral palette — light / dark. */
+body{
+  --bg:#191a1c; --fg:#f3f3f1; --muted:#b0b1b6;
+  --surface:#232427; --line:rgba(255,255,255,.13); --tint:rgba(255,255,255,.07);
+  --accent:#f3f3f1; --accent2:#d9d9d6; --accent3:#d9d9d6; --like:#ee8191;
+  --ui-font:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Noto Sans JP",sans-serif;
+  background:var(--bg); color:var(--fg); font-family:var(--ui-font);
+}
+body.light{
+  --bg:#f5f5f3; --fg:#222326; --muted:#66686d;
+  --surface:#fcfcfa; --line:rgba(30,31,34,.13); --tint:rgba(30,31,34,.055);
+  --accent:#222326; --accent2:#56585d; --accent3:#56585d; --like:#b6445b;
+  --card:var(--surface); background:var(--bg); color:var(--fg);
+}
+body .bg, body.light .bg{ opacity:.09; filter:blur(64px) saturate(.45); }
+body .bg-shade, body.light .bg-shade{ background:var(--bg); opacity:.90; }
+body .track-name, body.light .track-name{
+  font-family:var(--ui-font); font-size:25px; font-weight:650;
+  line-height:1.3; letter-spacing:-.035em; color:var(--fg); text-shadow:none; margin-bottom:5px;
+}
+body .track-artist, body.light .track-artist{
+  font-family:var(--ui-font); font-size:16px; font-weight:400; letter-spacing:-.015em; color:var(--muted);
+}
+body .track-genre, body.light .track-genre{
+  color:var(--muted); font-size:10px; font-weight:600; letter-spacing:.10em; margin-bottom:8px;
+}
+body .library-head h2, body.light .library-head h2,
+body .tut-title, body.light .tut-title, body .ad-gate-title, body.light .ad-gate-title,
+body .start-title, body.light .start-title{
+  font-family:var(--ui-font); font-weight:650; letter-spacing:-.025em; color:var(--fg);
+}
+body .brand, body.light .brand{
+  min-height:40px; padding:8px 10px; font-size:13px; font-weight:700; letter-spacing:.055em;
+  background:transparent; border:1px solid var(--line); border-radius:9px; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+body .brand-thin{ font-weight:500; opacity:1; }
+body .brand-dot, body.light .brand-dot{ background:var(--fg); width:7px; height:7px; }
+body .brand-caret, body.light .brand-caret{ color:var(--muted); }
+body .topbar, body.light .topbar{ padding-top:4px; }
+body .topbar-actions, body.light .topbar-actions{ gap:8px; }
+body .skip-toggle, body.light .skip-toggle{
+  min-height:44px; padding:8px 5px; background:transparent; border:0; border-radius:8px;
+  color:var(--muted); font-size:11px; font-weight:500; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+body .skip-toggle.on, body.light .skip-toggle.on{ background:var(--tint); color:var(--fg); }
+body .lib-btn, body.light .lib-btn{ background:transparent; border:0; box-shadow:none; color:var(--fg); }
+body .lib-count, body.light .lib-count{
+  top:0; right:-1px; background:var(--tint); color:var(--muted);
+  min-width:16px; height:16px; line-height:16px; font-size:10px; font-weight:600;
+}
+body .genres, body.light .genres{ gap:18px; margin-top:15px; padding:0 2px; border-bottom:1px solid var(--line); }
+body .chip, body.light .chip{
+  position:relative; min-height:44px; padding:11px 2px; border:0; border-radius:0;
+  color:var(--muted); background:transparent; box-shadow:none; font-size:12px; font-weight:500; letter-spacing:0;
+}
+body .chip.is-active, body.light .chip.is-active{ color:var(--fg); background:transparent; box-shadow:none; font-weight:650; }
+body .chip.is-active::after, body.light .chip.is-active::after{
+  content:""; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--fg); border-radius:1px;
+}
+body .disc{ box-shadow:0 20px 40px #0005,0 0 0 1px #ffffff20,inset 0 1px 2px #ffffff24; }
+body.light .disc{ box-shadow:0 18px 35px #15161924,0 3px 8px #15161912,inset 0 1px 2px #ffffff24; }
+body .track-like, body.light .track-like, body .apple-open, body.light .apple-open{
+  background:transparent; color:var(--muted); box-shadow:none;
+}
+body .track-like.is-liked, body.light .track-like.is-liked{ color:var(--like); }
+body .seek-track, body.light .seek-track{ background:var(--line); }
+body .seek-fill, body.light .seek-fill{ background:var(--fg); }
+body .seek-times, body.light .seek-times, body .hint, body.light .hint{ color:var(--muted); }
+body .controls, body.light .controls{ gap:30px; }
+body .ctrl, body.light .ctrl{
+  width:54px !important; height:54px !important; background:transparent !important;
+  color:var(--fg) !important; box-shadow:none !important;
+}
+body .ctrl-play, body.light .ctrl-play{
+  width:66px !important; height:66px !important; border-radius:50% !important;
+  background:var(--fg) !important; color:var(--bg) !important;
+}
+body .ctrl svg, body.light .ctrl svg{ width:24px; height:24px; }
+body .ctrl-play svg, body.light .ctrl-play svg{ width:30px; height:30px; }
+body .ctrl:active, body.light .ctrl:active{ opacity:.7; }
+body .ctrl-play:active, body.light .ctrl-play:active{ background:var(--fg) !important; }
+body .library-sheet, body.light .library-sheet{ background:var(--surface); box-shadow:0 -12px 40px #0002; }
+body .library-close, body.light .library-close, body .theme-seg, body.light .theme-seg{ background:var(--tint); color:var(--fg); }
+body .lib-tab, body.light .lib-tab{ background:transparent; color:var(--muted); border-radius:8px; }
+body .lib-tab.is-active, body.light .lib-tab.is-active{ background:var(--tint); color:var(--fg); }
+body .lib-open, body.light .lib-open{ background:transparent; color:var(--muted); }
+body .lib-play-glyph, body.light .lib-play-glyph, body .acc-icon, body.light .acc-icon{ color:var(--muted); }
+body .acc-body p, body.light .acc-body p, body .acc-body li, body.light .acc-body li{ color:var(--muted); }
+body .acc-body b, body.light .acc-body b{ color:var(--fg); }
+body .acc-item, body.light .acc-item, body .theme-row, body.light .theme-row, body .lib-list li, body.light .lib-list li{ border-bottom-color:var(--line); }
+body .fav-play-all, body.light .fav-play-all, body .theme-btn.on, body.light .theme-btn.on,
+body .start-btn, body.light .start-btn, body .tut-btn.primary, body.light .tut-btn.primary,
+body .ad-gate-btn.primary, body.light .ad-gate-btn.primary{ background:var(--fg); color:var(--bg); box-shadow:none; }
+body .start-overlay, body.light .start-overlay, body .tutorial, body.light .tutorial{ background:var(--bg); }
+body .tut-desc, body.light .tut-desc, body .tut-btn.ghost, body.light .tut-btn.ghost{ color:var(--muted); }
+body .tut-card, body.light .tut-card{ border-color:var(--line); box-shadow:0 12px 24px #0003; }
+body .tut-hand, body.light .tut-hand{ background:var(--fg); box-shadow:0 0 0 9px var(--tint); }
+body .tut-dot, body.light .tut-dot{ background:var(--line); }
+body .tut-dot.on, body.light .tut-dot.on{ background:var(--fg); }
+body .tut-heart, body.light .tut-heart{ color:var(--like); text-shadow:none; }
+@media(max-width:380px){
+  body .brand, body.light .brand{ font-size:12px; padding-inline:8px; }
+  body .topbar-actions, body.light .topbar-actions{ gap:4px; }
+  body .skip-toggle, body.light .skip-toggle{ font-size:10px; padding-inline:4px; }
+  body .genres, body.light .genres{ gap:16px; }
+  body .track-name, body.light .track-name{ font-size:23px; }
+}
+
+/* Listening room — an album-lit stage with tactile, quiet controls. */
+body{ --signal:#f5876f; --like:#f5876f; --player-width:480px; }
+body.light{ --signal:#b64432; --like:#b64432; }
+body .app{ padding:calc(var(--safe-top) + 16px) 26px calc(var(--safe-bottom) + 14px); }
+body .topbar, body .genres, body .stage, body .track-info, body .listening-tools{ max-width:var(--player-width); }
+body .bg, body.light .bg{
+  opacity:.32; filter:blur(88px) saturate(.75); background-position:center 30%;
+}
+body .bg-shade{
+  opacity:1;
+  background:linear-gradient(180deg,rgba(25,26,28,.32),rgba(25,26,28,.80) 56%,#191a1c 88%);
+}
+body.light .bg{ opacity:.23; filter:blur(88px) saturate(.6); }
+body.light .bg-shade{
+  opacity:1;
+  background:linear-gradient(180deg,rgba(245,245,243,.30),rgba(245,245,243,.84) 56%,#f5f5f3 88%);
+}
+body .topbar, body.light .topbar{ padding-top:0; }
+body .brand, body.light .brand{
+  min-height:44px; gap:9px; padding:7px 10px 7px 8px;
+  border-color:var(--line); border-radius:12px; background:var(--tint);
+}
+body .brand-name{ font-size:19px; font-weight:750; letter-spacing:-.055em; line-height:1; }
+body .brand-thin{ font-weight:400; margin-left:2px; }
+body .brand-dot, body.light .brand-dot{
+  width:22px; height:22px; border-radius:50%; background:transparent;
+  border:1px solid currentColor; position:relative;
+}
+body .brand-dot::before{ content:""; position:absolute; inset:4px; border:1px solid currentColor; border-radius:50%; opacity:.5; }
+body .brand-dot::after{ content:""; position:absolute; inset:8px; background:var(--signal); border-radius:50%; }
+body .brand-caret{ width:12px; margin-left:1px; }
+body .lib-btn, body.light .lib-btn{
+  width:auto; height:44px; display:flex; align-items:center; gap:7px; padding:0 4px 0 10px;
+  border-radius:10px; background:transparent; color:var(--fg);
+}
+.library-label{ font-size:11px; font-weight:500; letter-spacing:.015em; }
+body .lib-btn svg{ width:19px; height:19px; }
+body .lib-count, body.light .lib-count{
+  position:static; min-width:17px; height:18px; line-height:18px; border-radius:5px;
+  padding:0 4px; font-size:10px; background:var(--tint); color:var(--muted);
+}
+body .genres, body.light .genres{ margin-top:17px; gap:24px; border-color:var(--line); padding:0; }
+body .chip, body.light .chip{ min-height:42px; font-size:12px; letter-spacing:.015em; padding:9px 0; }
+body .chip.is-active::after, body.light .chip.is-active::after{ height:2px; background:var(--signal); }
+body .stage{ min-height:0; isolation:isolate; }
+body .stage::before{
+  content:""; position:absolute; width:calc(var(--disc-size) + 44px); height:calc(var(--disc-size) + 44px);
+  border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,.05),transparent 68%);
+  pointer-events:none; z-index:-1;
+}
+body.light .stage::before{ background:radial-gradient(circle,rgba(22,24,28,.055),transparent 69%); }
+body .record-card{ cursor:grab; }
+body .record-card.dragging{ cursor:grabbing; }
+body .record-card::before{
+  content:""; position:absolute; inset:-7px; border:1px solid var(--line); border-radius:50%;
+  opacity:.45; pointer-events:none; transition:opacity .2s ease;
+}
+body .record-card.dragging::before{ opacity:1; }
+body .disc{
+  box-shadow:0 22px 42px #0007,0 0 0 1px #ffffff29,inset 0 2px 2px #ffffff26;
+  transition:filter .2s ease;
+}
+body.light .disc{ box-shadow:0 22px 38px #15161930,0 0 0 1px #1516191a,inset 0 2px 2px #ffffff26; }
+body .artwork-cover{ box-shadow:0 0 0 3px #08090abf,0 0 0 4px #ffffff14; }
+body .tonearm{ filter:drop-shadow(0 5px 5px #0005); }
+body .track-info{ padding:0; }
+.track-overline{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; min-height:14px; }
+body .track-genre, body.light .track-genre{ margin:0; font-size:10px; font-weight:600; letter-spacing:.13em; }
+.playback-indicator{ display:flex; align-items:center; gap:6px; color:var(--muted); font-size:10px; letter-spacing:.03em; white-space:nowrap; }
+.playback-dot{ width:5px; height:5px; border-radius:50%; background:var(--muted); opacity:.6; transition:background .25s,box-shadow .25s; }
+.is-playing .playback-dot{ background:var(--signal); opacity:1; box-shadow:0 0 0 3px var(--tint); }
+body .track-head{ align-items:center; gap:18px; }
+body .track-name, body.light .track-name{
+  font-size:clamp(24px,5.8vw,30px); line-height:1.22; letter-spacing:-.035em; font-weight:700; margin-bottom:7px;
+}
+body .track-artist, body.light .track-artist{ font-size:16px; line-height:1.45; letter-spacing:0; }
+body .track-like, body.light .track-like{
+  width:48px; height:48px; flex-basis:48px; border:1px solid var(--line); border-radius:50%;
+  color:var(--fg); background:var(--tint); transition:background .2s,border-color .2s,transform .2s;
+}
+body .track-like.is-liked, body.light .track-like.is-liked{ border-color:var(--signal); background:transparent; color:var(--signal); }
+.track-like.is-liked svg{ animation:like-click .32s ease-out; }
+@keyframes like-click{ 0%{ transform:scale(.8); } 55%{ transform:scale(1.17); } 100%{ transform:scale(1); } }
+body .seek{ margin-top:20px; }
+body .seek-track{ height:3px; border-radius:2px; }
+body .seek-fill, body.light .seek-fill{ background:var(--fg); }
+body .seek-times{ font-size:10px; margin-top:8px; letter-spacing:.04em; }
+body .controls, body.light .controls{ gap:38px; margin-top:18px; }
+body .ctrl, body.light .ctrl{ transition:transform .18s,opacity .18s,background .18s; }
+body .ctrl-side, body.light .ctrl-side{ width:50px !important; height:50px !important; border:1px solid var(--line) !important; border-radius:50%; }
+body .ctrl-side svg, body.light .ctrl-side svg{ width:21px; height:21px; }
+body .ctrl-play, body.light .ctrl-play{
+  width:72px !important; height:72px !important;
+  box-shadow:0 0 0 5px var(--tint),0 7px 18px #0002 !important;
+}
+body .ctrl-play svg, body.light .ctrl-play svg{ width:28px; height:28px; }
+body .ctrl:active, body.light .ctrl:active{ transform:scale(.92); opacity:.85; }
+body .listening-tools{ display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:16px; }
+body .listening-tools .skip-toggle{ min-height:40px; font-size:11px; gap:7px; padding:8px 0; }
+body .listening-tools .skip-toggle.on{ padding-inline:10px; }
+body .listening-tools .apple-open{
+  flex:none; display:flex; align-items:center; gap:6px; width:auto; height:40px;
+  padding:0; font-size:11px; font-weight:500; letter-spacing:0; color:var(--muted); background:transparent;
+}
+body .listening-tools .apple-open.hidden{ display:none; }
+body .listening-tools .apple-open svg{ width:15px; height:15px; }
+.external-arrow{ font-size:15px; margin-left:2px; }
+body .hint, body.light .hint{ font-size:10px; letter-spacing:.04em; margin-top:5px; opacity:.85; }
+body .library-sheet, body.light .library-sheet{ border:1px solid var(--line); border-bottom:0; border-radius:24px 24px 0 0; padding-top:22px; }
+body .library-head h2, body.light .library-head h2{ font-size:21px; letter-spacing:-.035em; }
+body .lib-track-play{ min-height:64px; }
+body .lib-list img{ width:50px; height:50px; border-radius:7px; }
+body .fav-play-all{ border-radius:10px; }
+@media(hover:hover){
+  body .record-card:hover .disc{ filter:brightness(1.12); }
+  body .brand:hover, body .lib-btn:hover, body .ctrl-side:hover, body .track-like:hover{ background:var(--tint) !important; }
+  body .ctrl-play:hover{ transform:scale(1.045); }
+  body .lib-track-play:hover .lib-meta b{ text-decoration:underline; text-underline-offset:3px; }
+}
+@media(max-width:380px){
+  body .app{ padding-inline:20px; }
+  body .brand-name{ font-size:18px; }
+  body .brand, body.light .brand{ padding:7px 8px; gap:7px; }
+  body .genres, body.light .genres{ gap:20px; }
+  body .track-head{ gap:12px; }
+}
+@media(max-height:740px){
+  body{ --disc-size:min(70vw,35.5dvh,320px); }
+  body .app{ padding-top:calc(var(--safe-top) + 10px); padding-bottom:calc(var(--safe-bottom) + 8px); }
+  body .genres, body.light .genres{ margin-top:8px; min-height:40px; }
+  .track-overline{ margin-bottom:8px; }
+  body .track-name, body.light .track-name{ font-size:24px; }
+  body .seek{ margin-top:13px; }
+  body .controls, body.light .controls{ margin-top:12px; }
+  body .ctrl-play, body.light .ctrl-play{ width:64px !important; height:64px !important; }
+  body .listening-tools{ margin-top:8px; }
+}
+@media(prefers-reduced-motion:reduce){
+  .track-like.is-liked svg{ animation:none; }
+  body .ctrl, body .track-like, body .disc{ transition:none; }
+}
+
+@media(max-height:620px){
+  body{ --disc-size:min(64vw,28dvh,260px); }
+  body .track-name, body.light .track-name{ font-size:21px; }
+  body .controls, body.light .controls{ margin-top:8px; }
+  body .listening-tools{ margin-top:4px; }
+}
+
+/* Keep an in-flow banner area clear below playback, including when ads are off. */
+/* バナー広告(AdMob 320x50)の実寸ぶんだけ確保する。
+   取り過ぎると本体が上に詰まって窮屈に見えるので余白は最小限にとどめる。 */
+body{ --banner-height:50px; }
+body .ad-dock{
+  flex:0 0 var(--banner-height); min-height:var(--banner-height);
+  align-self:stretch; display:flex; align-items:center; justify-content:center;
+  margin-top:8px;
+}
+body .ad-dock .ad-banner{
+  width:100%; max-width:var(--player-width); height:100%; min-height:0;
+  margin:0; box-sizing:border-box;
+}
+body .topbar .library-label{ display:none; }
+body .topbar-actions, body.light .topbar-actions{ gap:8px; }
+body .topbar .skip-toggle{ padding:8px; font-size:11px; }
+body .topbar .lib-btn{ padding:0 2px 0 4px; gap:4px; }
+body .track-titles .apple-open{
+  display:inline-flex; align-items:center; justify-content:flex-start;
+  gap:5px; width:auto; height:auto; min-height:32px; margin:4px 0 0;
+  color:var(--muted); background:transparent; font-size:11px; font-weight:500; letter-spacing:0;
+}
+body .track-titles .apple-open svg{ width:15px; height:15px; }
+body .track-titles .apple-open.hidden{ display:none; }
+body .track-head{ align-items:flex-start; }
+body .track-like{ margin-top:4px; }
+body .seek{ margin-top:10px; }
+@media(max-height:740px){
+  body{ --disc-size:min(68vw,30dvh,300px); }
+  body .track-overline{ margin-bottom:6px; }
+  body .ad-dock{ margin-top:6px; }
+  body .seek{ margin-top:6px; }
+}
+@media(max-width:380px){
+  body .topbar-actions, body.light .topbar-actions{ gap:4px; }
+  body .topbar .skip-toggle{ font-size:10px; padding-inline:5px; gap:3px; }
+  body .brand-name{ font-size:17px; }
+}
+@media(max-height:620px){
+  body{ --disc-size:min(60vw,25dvh,240px); }
+  body .app{ overflow-y:auto; }
+  body .stage{ flex:1 0 calc(var(--disc-size) + 28px); }
+}
+
+/* =========================================================
+   シークバー: タップ/ドラッグで再生位置を移動
+   細いバー自体は指で掴みにくいので、上下に広い透明な当たり判定(.seek-hit)を被せる
+   ========================================================= */
+.seek-hit{
+  position:relative;
+  padding:13px 0; margin:-13px 0;      /* 当たり判定だけ拡張し、見た目の間隔は変えない */
+  cursor:pointer;
+  touch-action:none;                   /* ドラッグをスクロールに取られないように */
+  -webkit-tap-highlight-color:transparent;
+}
+body .seek-track, body.light .seek-track{
+  overflow:visible;                    /* つまみがはみ出せるように */
+  transition:height .18s ease, background-color .18s ease;
+}
+.seek-knob{
+  position:absolute; left:0; top:50%;
+  width:13px; height:13px; margin:-6.5px 0 0 -6.5px;
+  border-radius:50%; background:var(--fg);
+  box-shadow:0 1px 5px rgba(0,0,0,.28);
+  opacity:0; transform:scale(.35);
+  transition:opacity .18s ease, transform .18s ease;
+  pointer-events:none;
+}
+/* 掴んでいる間はバーを太くし、つまみを出す(Apple Music風) */
+.seek.seeking .seek-track{ height:7px; border-radius:4px; }
+.seek.seeking .seek-fill{ border-radius:4px; }
+.seek.seeking .seek-knob{ opacity:1; transform:scale(1); }
+.seek.seeking .seek-times{ color:var(--fg); }
+.seek-track:focus-visible{ outline:2px solid var(--fg); outline-offset:7px; border-radius:4px; }
+.seek-track:focus{ outline:none; }
+
+/* =========================================================
+   配信サービスへの導線（Apple Music / Spotify）を横並びにする
+   ========================================================= */
+.open-links{
+  display:flex; align-items:center; flex-wrap:wrap;
+  gap:6px 14px; margin-top:4px;
+}
+body .open-links .apple-open, body.light .open-links .apple-open{
+  display:inline-flex; align-items:center; justify-content:flex-start;
+  gap:5px; width:auto; height:auto; min-height:30px; margin:0;
+  padding:0; border:0; background:transparent; box-shadow:none;
+  color:var(--muted); font-size:11px; font-weight:500; letter-spacing:0;
+}
+body .open-links .apple-open:active, body.light .open-links .apple-open:active{
+  color:var(--fg); background:transparent;
+}
+body .open-links .apple-open svg{ width:15px; height:15px; flex:none; }
+body .open-links .apple-open.hidden{ display:none; }
+/* 2つとも隠れたら行ごと詰める */
+.open-links:not(:has(.apple-open:not(.hidden))){ display:none; }
